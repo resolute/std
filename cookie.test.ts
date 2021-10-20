@@ -11,10 +11,10 @@ test('parse', (t) => {
 test('stringify', (t) => {
   t.is(stringify('key', 'value'), 'key=value;samesite=none;secure');
   t.is(stringify('key', 'value', {
-    expires: new Date(2040, 1, 1),
+    expires: new Date('2040-01-01'),
     samesite: 'lax',
     secure: false,
-  }), 'key=value;expires=Wed, 01 Feb 2040 05:00:00 GMT;samesite=lax');
+  }), 'key=value;expires=Sun, 01 Jan 2040 00:00:00 GMT;samesite=lax');
   t.is(stringify('key', ''), 'key=;expires=Thu, 01 Jan 1970 00:00:00 GMT;samesite=none;secure');
 });
 
