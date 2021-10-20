@@ -48,8 +48,8 @@ test('keeper + interval', async (t) => {
   t.is(await kept.get(), 1);
   kept.start(100);
   await sleep(350);
-  t.true(kept.stale() > 3);
+  t.true(kept.stale() >= 3);
   kept.stop();
   await sleep(100);
-  t.true(kept.stale() > 3);
+  t.true(kept.stale() >= 3);
 });
