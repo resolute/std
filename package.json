@@ -8,7 +8,6 @@
   "files": [
     "**/*.cjs",
     "**/*.js",
-    "**/*.ts",
     "**/*.d.ts"
   ],
   "exports": {
@@ -131,7 +130,7 @@
     "build": "npm run clean; ./build.sh",
     "release": "np",
     "prepublishOnly": "npm test && npm run build",
-    "clean": "del-cli *.js *.cjs *.mjs *.js.map *.d.ts",
+    "clean": "del-cli *.js *.cjs *.mjs *.js.map *.d.ts dom/*.js dom/*.cjs dom/*.mjs dom/*.js.map dom/*.d.ts",
     "test": "c8 ava"
   },
   "repository": {
