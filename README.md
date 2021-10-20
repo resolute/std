@@ -129,4 +129,11 @@ extension and visa versa.
 
 Miscellaneous utilities without a home.
 
+### [`promise`](https://github.com/resolute/std/blob/master/promise.ts)
+
+Promise keeper utility.
+
+* `keeper`: Provides caching behavior to an expensive function. Can perform
+  periodic background refresh.
+
 TODO: document missing items.
