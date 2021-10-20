@@ -1,0 +1,11 @@
+.DS_Store
+._*
+*~
+node_modules
+*.cjs
+*.mjs
+*.js
+*.js.map
+*.d.ts
+.nyc_output
+coverage

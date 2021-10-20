@@ -1,0 +1,209 @@
+{
+  "name": "@resolute/std",
+  "version": "0.0.0",
+  "description": "Standard JavaScript/TypeScript Library",
+  "type": "module",
+  "main": "./index.cjs",
+  "types": "./",
+  "files": [
+    "*.cjs",
+    "*.js",
+    "*.ts",
+    "*.d.ts"
+  ],
+  "exports": {
+    "./coerce": {
+      "import": "./coerce.js",
+      "require": "./coerce.cjs",
+      "default": "./coerce.js",
+      "types": "./coerce.d.ts"
+    },
+    "./color": {
+      "import": "./color.js",
+      "require": "./color.cjs",
+      "default": "./color.js",
+      "types": "./color.d.ts"
+    },
+    "./control": {
+      "import": "./control.js",
+      "require": "./control.cjs",
+      "default": "./control.js",
+      "types": "./control.d.ts"
+    },
+    "./cookie": {
+      "import": "./cookie.js",
+      "require": "./cookie.cjs",
+      "default": "./cookie.js",
+      "types": "./cookie.d.ts"
+    },
+    "./ease": {
+      "import": "./ease.js",
+      "require": "./ease.cjs",
+      "default": "./ease.js",
+      "types": "./ease.d.ts"
+    },
+    "./http": {
+      "import": "./http.js",
+      "require": "./http.cjs",
+      "default": "./http.js",
+      "types": "./http.d.ts"
+    },
+    "./intl": {
+      "import": "./intl.js",
+      "require": "./intl.cjs",
+      "default": "./intl.js",
+      "types": "./intl.d.ts"
+    },
+    "./math": {
+      "import": "./math.js",
+      "require": "./math.cjs",
+      "default": "./math.js",
+      "types": "./math.d.ts"
+    },
+    "./mime": {
+      "import": "./mime.js",
+      "require": "./mime.cjs",
+      "default": "./mime.js",
+      "types": "./mime.d.ts"
+    },
+    "./misc": {
+      "import": "./misc.js",
+      "require": "./misc.cjs",
+      "default": "./misc.js",
+      "types": "./misc.d.ts"
+    },
+    "./dom/bg-color-match": {
+      "import": "./dom/bg-color-match.js",
+      "require": "./dom/bg-color-match.cjs",
+      "default": "./dom/bg-color-match.js",
+      "types": "./dom/bg-color-match.d.ts"
+    },
+    "./dom/closest-inclusive": {
+      "import": "./dom/closest-inclusive.js",
+      "require": "./dom/closest-inclusive.cjs",
+      "default": "./dom/closest-inclusive.js",
+      "types": "./dom/closest-inclusive.d.ts"
+    },
+    "./dom/facade": {
+      "import": "./dom/facade.js",
+      "require": "./dom/facade.cjs",
+      "default": "./dom/facade.js",
+      "types": "./dom/facade.d.ts"
+    },
+    "./dom/form": {
+      "import": "./dom/form.js",
+      "require": "./dom/form.cjs",
+      "default": "./dom/form.js",
+      "types": "./dom/form.d.ts"
+    },
+    "./dom/loaded": {
+      "import": "./dom/loaded.js",
+      "require": "./dom/loaded.cjs",
+      "default": "./dom/loaded.js",
+      "types": "./dom/loaded.d.ts"
+    },
+    "./dom/parallax": {
+      "import": "./dom/parallax.js",
+      "require": "./dom/parallax.cjs",
+      "default": "./dom/parallax.js",
+      "types": "./dom/parallax.d.ts"
+    },
+    "./dom/script": {
+      "import": "./dom/script.js",
+      "require": "./dom/script.cjs",
+      "default": "./dom/script.js",
+      "types": "./dom/script.d.ts"
+    },
+    "./dom/video": {
+      "import": "./dom/video.js",
+      "require": "./dom/video.cjs",
+      "default": "./dom/video.js",
+      "types": "./dom/video.d.ts"
+    },
+    "./dom/viewport": {
+      "import": "./dom/viewport.js",
+      "require": "./dom/viewport.cjs",
+      "default": "./dom/viewport.js",
+      "types": "./dom/viewport.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "npm run clean; ./build.sh",
+    "release": "np",
+    "prepublishOnly": "npm test && npm run build",
+    "clean": "del-cli *.js *.cjs *.mjs *.js.map *.d.ts",
+    "test": "c8 ava"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/resolute/std.git"
+  },
+  "bugs": {
+    "url": "https://github.com/resolute/std/issues"
+  },
+  "homepage": "https://github.com/resolute/std",
+  "author": "Adam Chalemian <adam@chal.net>",
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "devDependencies": {
+    "@types/isomorphic-fetch": "^0.0.35",
+    "@types/node": "^16.10.1",
+    "@typescript-eslint/eslint-plugin": "^4.32.0",
+    "@typescript-eslint/parser": "^4.32.0",
+    "ava": "^3.15.0",
+    "c8": "^7.9.0",
+    "codecov": "^3.8.3",
+    "del-cli": "^4.0.1",
+    "eslint": "^7.32.0",
+    "eslint-config-airbnb-base": "^14.2.1",
+    "eslint-config-airbnb-typescript": "^14.0.0",
+    "eslint-plugin-import": "^2.24.2",
+    "isomorphic-fetch": "^3.0.0",
+    "jsdoc-to-markdown": "^7.1.0",
+    "np": "^7.5.0",
+    "prettier": "^2.4.1",
+    "ts-node": "^10.2.1",
+    "typedoc": "^0.22.6",
+    "typedoc-plugin-markdown": "^3.11.3",
+    "typescript": "^4.4.3"
+  },
+  "keywords": [
+    "std",
+    "standard",
+    "library",
+    "utilities"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "license": "ISC",
+  "ava": {
+    "files": [
+      "**/*.test.ts",
+      "!**/*.d.ts"
+    ],
+    "extensions": {
+      "ts": "module"
+    },
+    "nonSemVerExperiments": {
+      "configurableModuleFormat": true
+    },
+    "nodeArguments": [
+      "--loader=ts-node/esm",
+      "--experimental-specifier-resolution=node"
+    ],
+    "timeout": "2m"
+  },
+  "c8": {
+    "exclude": [
+      "**/*.js",
+      "**/*.test.ts"
+    ],
+    "reporter": [
+      "text",
+      "html",
+      "lcov"
+    ]
+  }
+}
