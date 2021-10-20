@@ -45,8 +45,8 @@ test('keeper', async (t) => {
 
 test('keeper + interval', async (t) => {
   const kept = keeper(expensive());
-  kept.start(100);
   t.is(await kept.get(), 1);
+  kept.start(100);
   await sleep(350);
   t.is(kept.stale(), 4);
   kept.stop();

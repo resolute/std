@@ -38,7 +38,7 @@ const storage = new WeakMap<any, any>();
 const keep = <R>(fn: () => Promise<R>) => {
   let settled: R | typeof empty = empty;
   let pending: Promise<R> | typeof empty = empty;
-  let interval: NodeJS.Timeout | number | undefined;
+  let timeout: NodeJS.Timeout | number | undefined;
 
   const invoke = () => fn().then((data) => {
     settled = data;
@@ -77,20 +77,22 @@ const keep = <R>(fn: () => Promise<R>) => {
    * Terminate any keepFresh() intervals.
    */
   const stop = () => {
-    if (interval) {
-      clearTimeout(interval as number);
-      interval = undefined;
+    if (timeout) {
+      clearTimeout(timeout as number);
+      timeout = undefined;
     }
   };
 
   /**
    * Refresh cache on a given interval.
-   * @param timeout milliseconds to keep refreshing data
+   * @param delay milliseconds to keep refreshing data
    */
-  const start = (timeout = 1000 * 60 * 60 * 30) => {
+  const start = (delay = 1000 * 60 * 60 * 30) => {
     stop();
-    interval = setInterval(process.nextTick, timeout, fresh);
-    (timeout as unknown as NodeJS.Timeout)?.unref?.();
+    timeout = setTimeout(() => {
+      fresh().finally(start.bind(null, delay));
+    }, delay);
+    timeout.unref?.();
     return this;
   };
   return {
