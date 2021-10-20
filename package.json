@@ -6,10 +6,10 @@
   "main": "./index.cjs",
   "types": "./",
   "files": [
-    "*.cjs",
-    "*.js",
-    "*.ts",
-    "*.d.ts"
+    "**/*.cjs",
+    "**/*.js",
+    "**/*.ts",
+    "**/*.d.ts"
   ],
   "exports": {
     "./coerce": {
