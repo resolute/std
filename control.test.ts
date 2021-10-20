@@ -18,9 +18,9 @@ test('retry', async (t) => {
 });
 
 test('sleep', async (t) => {
-  const start = performance.now();
+  const start = Date.now();
   await sleep(100);
-  const stop = performance.now();
+  const stop = Date.now();
   t.true(stop - start > 90);
   let state = 0;
   const sleepyFunction = (number: number) => {

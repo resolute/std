@@ -48,7 +48,7 @@ Runtime and control flow helpers.
 * `sleep`: Promisify `setTimeout`. Returns a Promise that settles with the
   return of the passed function after `delay` milliseconds.
   ```js
-  await sleep(1000, (then) => performance.now() - then, performance.now());
+  await sleep(1000, (then) => Date.now() - then, Date.now());
   // ~1000
   ```
 
