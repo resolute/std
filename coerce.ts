@@ -260,29 +260,11 @@ export const date = (value: number | string | Date) => {
   return dateObject;
 };
 
-/**
- * @ignore
- */
 interface CoerceBoolean {
-  /**
-   * @ignore
-   */
   (): (value: unknown) => true | false;
-  /**
-   * @ignore
-   */
   <T>(truthy: T): (value: unknown) => T | false;
-  /**
-   * @ignore
-   */
   <T, F>(truthy: T, falsey: F): (value: unknown) => T | F;
-  /**
-   * @ignore
-   */
   <T, F, N>(truthy: T, falsey: F, nully: N): (value: unknown) => T | F | N;
-  /**
-   * @ignore
-   */
   <T, F, N, U>(truthy: T, falsey: F, nully: N, undefy: U): (value: unknown) => T | F | N | U;
 }
 /**
@@ -331,9 +313,6 @@ export const iterable = <T>(value: Iterable<T> | T) => {
   }
 };
 
-/**
- * @ignore
- */
 interface CoerceArray {
   <T>(input: Iterable<T>): T[];
   <T>(input: T): T[];
@@ -590,17 +569,11 @@ export const split = (separator = /[,\r\n\s]+/g) =>
 //#region Types
 // -----------------------------------------------------------------------------
 
-/**
- * @ignore
- */
 export interface Coercer<O = never> {
   <E>(value: unknown, otherwise: E): O | Exclude<E, Error | Function>;
   <I>(value: I): [O] extends [never] ? I : O;
 }
 
-/**
- * @ignore
- */
 export interface Coerce {
   (): Coercer<never>;
   <A extends ReadonlyArray<unknown>, B>(
