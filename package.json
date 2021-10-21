@@ -3,8 +3,6 @@
   "version": "0.0.1",
   "description": "Standard JavaScript/TypeScript Library",
   "type": "module",
-  "main": "./index.cjs",
-  "types": "./",
   "files": [
     "**/*.cjs",
     "**/*.js",
