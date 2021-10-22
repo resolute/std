@@ -93,7 +93,6 @@ const keep = <R>(fn: () => Promise<R>) => {
       fresh().finally(start.bind(null, delay));
     }, delay);
     timeout.unref?.();
-    return this;
   };
   return {
     fresh, get, stale, start, stop,

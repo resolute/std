@@ -129,10 +129,8 @@ test(pass, coerce(object), '({is: "object"})', { is: 'object' });
 test(fail, coerce(object), '"not an object"');
 
 // instance
-class Nameless {
-  // @ts-ignore
-  static name = undefined;
-}
+const Nameless = (function Nameless() { }) as unknown as new () => void;
+Nameless.prototype.name = undefined;
 test(passInstance, coerce(instance(Date)), 'new Date(1)', Date);
 test(fail, coerce(instance(Error)), 'new Date(2)');
 test(fail, coerce(instance(Nameless)), 'new Date(3)');
