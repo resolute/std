@@ -1,8 +1,6 @@
 import { assertEquals, assertStrictEquals } from 'https://deno.land/std@0.112.0/testing/asserts.ts';
 
-import {
-  divide, randomIntExclusiveMax, range, scale,
-} from './math.ts';
+import { divide, randomIntExclusiveMax, range, scale } from './math.ts';
 
 Deno.test('range', () => {
   const ranger = range(0, 10);

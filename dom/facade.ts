@@ -23,10 +23,11 @@ export default (
 ) => {
   const elements = htmlToElements(facadeDomString);
   const element = elements[elements.length - 1]!;
-  const loadActual = (fromClickEvent: boolean) => actual(fromClickEvent)
-    .finally(() => {
-      setTimeout(removeElements, 0, elements);
-    });
+  const loadActual = (fromClickEvent: boolean) =>
+    actual(fromClickEvent)
+      .finally(() => {
+        setTimeout(removeElements, 0, elements);
+      });
 
   if (sessionStorage.getItem(name)) {
     loadActual(false);

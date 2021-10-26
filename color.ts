@@ -18,22 +18,19 @@ export const fromHex = (input: string) => {
  * Convert RGB array to an integer.
  * @param input `[r, g, b]` array
  */
-export const fromRgb = ([r, g, b]: number[]) =>
-  (r << 16) | (g << 8) | b;
+export const fromRgb = ([r, g, b]: number[]) => (r << 16) | (g << 8) | b;
 
 /**
  * Convert an integer to a hex color code.
  * @param input color integer
  */
-export const toHex = (input: number) =>
-  `#${(`000000${input.toString(16)}`).slice(-6)}`;
+export const toHex = (input: number) => `#${(`000000${input.toString(16)}`).slice(-6)}`;
 
 /**
  * Convert an integer to a RGB array
  * @param input color integer
  */
-export const toRgb = (input: number) =>
-  [input >> 16, (input >> 8) & 0xff, input & 0xff] as const;
+export const toRgb = (input: number) => [input >> 16, (input >> 8) & 0xff, input & 0xff] as const;
 
 /**
  * Convert a hex color code or RGB array to an integer.
@@ -94,10 +91,11 @@ export const blend = (a: number | string | number[], b: number | string | number
      *
      * @param percent fraction to blend
      */
-    (percent: number) => fromRgb([
-      range(R1, R2)(percent),
-      range(G1, G2)(percent),
-      range(B1, B2)(percent),
-    ])
+    (percent: number) =>
+      fromRgb([
+        range(R1, R2)(percent),
+        range(G1, G2)(percent),
+        range(B1, B2)(percent),
+      ])
   );
 };

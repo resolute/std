@@ -40,11 +40,12 @@ const keep = <R>(fn: () => Promise<R>) => {
   let pending: Promise<R> | typeof empty = empty;
   let timeout: number | undefined;
 
-  const invoke = () => fn().then((data) => {
-    settled = data;
-    pending = empty;
-    return data;
-  });
+  const invoke = () =>
+    fn().then((data) => {
+      settled = data;
+      pending = empty;
+      return data;
+    });
 
   const fresh = () => {
     if (pending !== empty) {
@@ -94,7 +95,11 @@ const keep = <R>(fn: () => Promise<R>) => {
     timeout.unref?.();
   };
   return {
-    fresh, get, stale, start, stop,
+    fresh,
+    get,
+    stale,
+    start,
+    stop,
   };
 };
 

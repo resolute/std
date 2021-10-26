@@ -1,7 +1,5 @@
 import { assertEquals, assertStrictEquals } from 'https://deno.land/std@0.112.0/testing/asserts.ts';
-import {
-  blend, fromHex, fromRgb, parse, toHex, toRgb,
-} from './color.ts';
+import { blend, fromHex, fromRgb, parse, toHex, toRgb } from './color.ts';
 
 Deno.test('parse', () => {
   assertEquals(toRgb(parse('#f00')), [255, 0, 0]);

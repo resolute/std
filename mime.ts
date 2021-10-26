@@ -22,10 +22,13 @@ const mimeDatabase = {
   'image/vnd.microsoft.icon': ['ico'],
 } as const;
 
-const extDatabase = Object.fromEntries([...Object.entries(mimeDatabase)]
-  .map(([mimetype, extensions]) => extensions
-    .map((extension) => [extension, mimetype as keyof typeof mimeDatabase] as const)).flat()) as
-  { [K in keyof typeof mimeDatabase as (typeof mimeDatabase)[K][0]]: K };
+const extDatabase = Object.fromEntries(
+  [...Object.entries(mimeDatabase)]
+    .map(([mimetype, extensions]) =>
+      extensions
+        .map((extension) => [extension, mimetype as keyof typeof mimeDatabase] as const)
+    ).flat(),
+) as { [K in keyof typeof mimeDatabase as (typeof mimeDatabase)[K][0]]: K };
 
 /**
  * Type guard for file extension.

@@ -1,8 +1,6 @@
 {
   "recommendations": [
-    "dbaeumer.vscode-eslint",
-    "esbenp.prettier-vscode",
-    "stkb.rewrap",
-    "yzhang.markdown-all-in-one",
-  ],
+    "denoland.vscode-deno",
+    "streetsidesoftware.code-spell-checker"
+  ]
 }

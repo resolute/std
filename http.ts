@@ -184,7 +184,7 @@ export const fetchOk = async (...args: Parameters<typeof fetch>) => {
 export const fetchPass = async (status: number | number[], ...args: Parameters<typeof fetch>) => {
   const response = await fetch(...args);
   try {
-    coerce(within(array(status)))(response.status);
+    coerce(within(array(status)))(response.status, HttpError);
   } catch {
     throw await readResponseError(response);
   }

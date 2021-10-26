@@ -21,8 +21,7 @@ export const range = (min: number, max: number) =>
    * values outside of the `min`–`max` range.
    * @param percent fraction
    */
-  (percent: number) =>
-    min + (max - min) * percent;
+  (percent: number) => min + (max - min) * percent;
 
 /**
  * Define a scaling function to calculate the percentage of `value` relative to
@@ -40,8 +39,7 @@ export const scale = (min: number, max: number) =>
    * Calculate the percentage of `value` relative to `min` and `max`.
    * @param value relative to `min` and `max`
    */
-  (value: number) =>
-    (value - min) / (max - min);
+  (value: number) => (value - min) / (max - min);
 
 /**
  * Define a clamping function to keep a `value` bound to the `min` and
@@ -58,8 +56,7 @@ export const clamp = (min = 0, max = 1) =>
    * Clamp a `value` to the bounds defined by `min` and `max`
    * @param value to be bounded to `min` and `max`
    */
-  (value: number) =>
-    Math.min(max, Math.max(min, value));
+  (value: number) => Math.min(max, Math.max(min, value));
 
 export const clamp01 = clamp();
 

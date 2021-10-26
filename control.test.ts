@@ -1,7 +1,10 @@
-import { assertExists, assertStrictEquals, assertThrowsAsync } from 'https://deno.land/std@0.112.0/testing/asserts.ts';
+import {
+  assert,
+  assertStrictEquals,
+  assertThrowsAsync,
+} from 'https://deno.land/std@0.112.0/testing/asserts.ts';
 
 import { once, retry, sleep } from './control.ts';
-import { fetchThrow500, readBody } from './http.ts';
 
 Deno.test('once', () => {
   let value = 0;
@@ -12,23 +15,27 @@ Deno.test('once', () => {
   assertStrictEquals(once(incr)(), 1);
 });
 
-Deno.test('retry', async () => {
-  assertExists(await retry(fetchThrow500)('https://httpstat.us/200').then(readBody));
-  await assertThrowsAsync(() => retry(fetchThrow500)('https://httpstat.us/500'));
+const fauxFail = (passOnRun = 3) => {
+  let run = 0;
+  return <T>(input: T) => {
+    run += 1;
+    if (run >= passOnRun) {
+      return Promise.resolve(input);
+    }
+    return Promise.reject(new Error(`Failed run # ${run}`));
+  };
+};
+
+Deno.test('retry:pass', async () => {
+  assertStrictEquals(await retry(fauxFail(3))('foo'), 'foo');
+});
+
+Deno.test('retry:fail', async () => {
+  await assertThrowsAsync(() => retry(fauxFail(4))('foo'));
 });
 
 Deno.test('sleep', async () => {
-  const start = Date.now();
-  await sleep(100);
-  const stop = Date.now();
-  assertStrictEquals(stop - start > 90, true);
-  let state = 0;
-  const sleepyFunction = (number: number) => {
-    state = number;
-    return number + 1;
-  };
-  const sleepyPromise = sleep(10, sleepyFunction, 1);
-  assertStrictEquals(state, 0);
-  assertStrictEquals(await sleepyPromise, 2);
-  assertStrictEquals(state, 1);
+  assert(
+    await sleep(50, (then) => Date.now() - then, Date.now()) >= 50,
+  );
 });

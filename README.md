@@ -11,12 +11,12 @@ npm i @resolute/std
 ## Usage
 
 ```js
-import { fetchThrow } from '@resolute/std/http';
+import { fetchOk } from '@resolute/std/http';
 try {
-  await fetchThrow(500, 'https://httpstat.us/500');
+  await fetchOk('https://httpstat.us/500');
 } catch (error) {
   // `fetch` doesn’t throw on 500 responses.
-  // `fetchThrow` does :)
+  // `fetchOk` does :)
 }
 ```
 
@@ -29,9 +29,9 @@ Type validation and sanitization.
 Coerce input to types and formats with sanitizers and validators.
 
 ```js
-coerce(string, trim, nonEmpty)(' foo '); // 'foo'
-coerce(string, trim, nonEmpty)('     '); // TypeError
-coerce(string, trim, nonEmpty)('     ', undefined); // undefined
+coerce(string, trim, nonempty)(' foo '); // 'foo'
+coerce(string, trim, nonempty)(' '); // TypeError
+coerce(string, trim, nonempty)(' ', undefined); // undefined
 ```
 
 ## [`./color`](https://github.com/resolute/std/blob/master/color.ts)
@@ -84,7 +84,7 @@ Wrap an async or promise-returning function that when called will retry up to `r
 until it resolves, whichever comes first.
 
 ```js
-await retry(fetch('https://…'));
+await retry(fetch)('https://…');
 ```
 
 ### `sleep`
@@ -104,8 +104,8 @@ Create and return a new promise along with its resolve and reject parameters. Es
 
 ```js
 const [promise, resolve, reject] = defer();
-addEventListener('something', resolve);
-addEventListener('somethingelse', reject);
+addEventListener('success', resolve);
+addEventListener('error', reject);
 return promise;
 ```
 
@@ -114,7 +114,7 @@ return promise;
 Wrap a function that to be executed once. Subsequent calls will return the value of the first (and
 only) invocation.
 
-```js
+```ts
 let value = 0;
 const incr = () => ++value;
 once(incr)(); // 1
@@ -178,10 +178,9 @@ Define a ranging function to calculate the number bound by `min` and `max` and a
 of the `min`–`max` range.
 
 ```js
-const ranger = range(0, 10);
-ranger(0.5); // 5
-ranger(1.5); // 15
-ranger(-0.5); // -5
+range(0, 10)(0.5); // 5
+range(0, 10)(1.5); // 15
+range(0, 10)(-0.5); // -5
 ```
 
 ### `scale`
@@ -189,10 +188,9 @@ ranger(-0.5); // -5
 Define a scaling function to calculate the percentage of `value` relative to `min` and `max`.
 
 ```js
-const scaler = scale(0, 10);
-scaler(5); // 0.5
-scaler(15); // 1.5
-scaler(-5); // -0.5
+scale(0, 10)(5); // 0.5
+scale(0, 10)(15); // 1.5
+scale(0, 10)(-5); // -0.5
 ```
 
 ### `clamp`

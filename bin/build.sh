@@ -22,8 +22,4 @@ ts2js "$file" && \
 rename cjs && \
 npx tsc --project tsconfig.build.json && \
 ts2js "$file" && \
-# rename mjs && \
-# prettier --write *.cjs *.js *.d.ts && \
-# prettier --write dom/*.cjs dom/*.js dom/*.d.ts && \
-# (eslint --fix *.js *.cjs *.mjs dom/*.js dom/*.cjs dom/*.mjs > /dev/null 2>&1; true)
-echo Finished.
+echo Build Completed.
