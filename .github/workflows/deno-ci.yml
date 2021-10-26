@@ -13,11 +13,12 @@ jobs:
       - name: Set up Deno ${{ matrix.deno }}
         uses: denoland/setup-deno@v1.0.0
         with:
-          deno: ${{ matrix.deno }}
+          deno-version: ${{ matrix.deno }}
       - name: Run tests
         run: deno test --allow-net --coverage=coverage/tmp --ignore=node_modules
       - name: Generate coverage
         run: deno coverage coverage/tmp --lcov > coverage/lcov.info; sed -i.bak -E 's/SF:.*\/([^/]+\.ts)/SF:\1/' coverage/lcov.info; rm -f coverage/lcov.info.bak
+        if: matrix.os == 'ubuntu-latest' && matrix.deno == 'canary'
       - name: Upload coverage
         uses: codecov/codecov-action@v2
         if: matrix.os == 'ubuntu-latest' && matrix.deno == 'canary'
