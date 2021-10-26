@@ -1,5 +1,9 @@
 # Standard TypeScript Development
 
+[![Deno CI](https://github.com/resolute/std/actions/workflows/deno-ci.yml/badge.svg)](https://github.com/resolute/std/actions/workflows/deno-ci.yml)
+[![CodeQL](https://github.com/resolute/std/actions/workflows/codeql-analysis.yml/badge.svg)](https://github.com/resolute/std/actions/workflows/codeql-analysis.yml)
+[![codecov](https://codecov.io/gh/resolute/std/branch/master/graph/badge.svg?token=R168PSFGID)](https://codecov.io/gh/resolute/std)
+
 Well tested TypeScript functions suitable for use in browser, service worker, and Node.js contexts.
 
 ## Installation
