@@ -127,7 +127,6 @@
     }
   },
   "scripts": {
-    "postinstall": "./bin/install.sh",
     "build": "./bin/build.sh",
     "release": "np",
     "prepublishOnly": "npm test && npm run build",
