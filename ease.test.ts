@@ -1,4 +1,4 @@
-import test from 'ava';
+import { assertStrictEquals } from 'https://deno.land/std@0.112.0/testing/asserts.ts';
 import {
   easeInQuad, easeOutQuad, easeInOutQuad, easeInCubic,
   easeOutCubic, easeInOutCubic, easeInQuart, easeOutQuart,
@@ -7,9 +7,9 @@ import {
   easeInOutExpo, easeInCirc, easeOutCirc, easeInOutCirc,
   easeInBack, easeOutBack, easeInOutBack, easeInElastic,
   easeOutElastic, easeInOutElastic, easeInBounce, easeInOutBounce,
-} from './ease';
+} from './ease.ts';
 
-test('ease', (t) => {
+Deno.test('ease', () => {
   [
     easeInQuad,
     easeOutQuad,
@@ -48,7 +48,7 @@ test('ease', (t) => {
       0.7, 0.8, 0.9,
       1,
     ].forEach((progress) => {
-      t.true(Number.isFinite(ease(progress)));
+      assertStrictEquals(Number.isFinite(ease(progress)), true);
     });
   });
 });

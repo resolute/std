@@ -1,4 +1,5 @@
-import { string } from './coerce.js';
+// @ts-ignore tsc non-sense
+import { string } from './coerce.ts';
 
 export type MimeTypes = keyof typeof mimeDatabase;
 

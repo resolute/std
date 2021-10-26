@@ -1,8 +1,9 @@
-import {
-  coerce, instance, nonempty, string,
-} from '../coerce.js';
-import { readResponseError, fetchThrow500 } from '../http.js';
-import { retry } from '../control.js';
+// @ts-ignore tsc non-sense
+import { coerce, instance, nonempty, string } from '../coerce.ts';
+// @ts-ignore tsc non-sense
+import { fetchThrow500, readResponseError } from '../http.ts';
+// @ts-ignore tsc non-sense
+import { retry } from '../control.ts';
 
 export type FailureEvent = CustomEvent<Error>;
 
@@ -34,16 +35,23 @@ const clearError = (form: HTMLFormElement) => {
   }
 };
 
-const showError = (submit: HTMLInputElement) => (error: unknown) => {
-  const { message } = coerce(instance(Error))(error, new Error('Unexpected error encountered. Please try again.'));
-  submit.insertAdjacentHTML('beforebegin', `<p class="error">${message}</p>`);
-};
+const showError = (submit: HTMLInputElement) =>
+  (error: unknown) => {
+    const { message } = coerce(instance(Error))(
+      error,
+      new Error('Unexpected error encountered. Please try again.'),
+    );
+    submit.insertAdjacentHTML('beforebegin', `<p class="error">${message}</p>`);
+  };
 
 const handler = async (form: HTMLFormElement) => {
   const inputs = form.querySelectorAll('input');
   const submit = form.querySelector<HTMLInputElement>('input[type="submit"]')!;
-  const method = coerce(string, nonempty)(form.getAttribute('method'), 'POST');
-  const uri = coerce(string, nonempty)(form.getAttribute('action'), new TypeError(`Invalid “action” attribute on ${form}.`));
+  const method = coerce(string, nonempty)(form.getAttribute('method')!, 'POST');
+  const uri = coerce(string, nonempty)(
+    form.getAttribute('action')!,
+    new TypeError(`Invalid “action” attribute on ${form}.`),
+  );
   const body = new FormData(form);
   clearError(form);
   submitting(inputs, submit);
@@ -54,7 +62,8 @@ const handler = async (form: HTMLFormElement) => {
     if (!response.ok) {
       throw await readResponseError(response);
     }
-    // TODO(design decision): should we include the response in the success event?
+    // TODO: design decision: should we include the response in the success
+    // event?
     // const data = await response.json();
     form.classList.add('thanks');
     form.dispatchEvent(new CustomEvent('success'));

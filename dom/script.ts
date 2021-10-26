@@ -1,6 +1,9 @@
-import loaded from './loaded.js';
-import { randomIntInclusive } from '../math.js';
-import { defer } from '../control.js';
+// @ts-ignore tsc non-sense
+import loaded from './loaded.ts';
+// @ts-ignore tsc non-sense
+import { randomIntInclusive } from '../math.ts';
+// @ts-ignore tsc non-sense
+import { defer } from '../control.ts';
 
 /**
  * Create and append `<script>` to DOM with async and defer.
@@ -9,10 +12,12 @@ export const script = (src: string, timeout = 0, jitter = 1000) => {
   const element = document.createElement('script');
   element.async = true;
   element.defer = true;
-  loaded(() => setTimeout(() => {
-    element.src = src;
-    document.body.appendChild(element);
-  }, timeout + randomIntInclusive(0, jitter)));
+  loaded(() =>
+    setTimeout(() => {
+      element.src = src;
+      document.body.appendChild(element);
+    }, timeout + randomIntInclusive(0, jitter))
+  );
   return element;
 };
 

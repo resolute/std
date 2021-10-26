@@ -1,11 +1,12 @@
-import { randomIntInclusive } from './math.js';
+// @ts-ignore tsc non-sense
+import { randomIntInclusive } from './math.ts';
 
 /**
  * Create and return a new promise along with its resolve and reject parameters.
  */
 export const defer = <T>() => {
   let resolve: (value: T | PromiseLike<T>) => void;
-  let reject: (reason?: any) => void;
+  let reject: (reason?: unknown) => void;
   const promise = new Promise<T>((_resolve, _reject) => {
     resolve = _resolve;
     reject = _reject;
@@ -14,13 +15,23 @@ export const defer = <T>() => {
   return [promise, resolve, reject] as const;
 };
 
-const onceCache = new WeakMap<(...args: any[]) => any, any>();
+const onceCache = new WeakMap<(...args: unknown[]) => unknown, unknown>();
 
 /**
  * Wrap a function that to be executed once. Subsequent calls will return the
  * value of the first (and only) invocation.
+ * @example
+ * ```ts
+ * import { once } from './once.ts';
+ * let value = 0;
+ * const incr = () => ++value;
+ * once(incr)(); // 1
+ * once(incr)(); // 1
+ * incr(); // 2
+ * once(incr)(); // 1
+ * ```
  */
-export const once = <T extends (...args: any[]) => void>(fn: T) =>
+export const once = <T extends (...args: unknown[]) => void>(fn: T) =>
   (...args: Parameters<T>) => {
     if (!onceCache.has(fn)) {
       const result = fn(...args);
@@ -39,7 +50,7 @@ export const once = <T extends (...args: any[]) => void>(fn: T) =>
  */
 export const sleep = <P extends unknown[], R>(
   delay = 0,
-  fn = ((() => { }) as (...args: P) => R),
+  fn = ((() => {}) as (...args: P) => R),
   ...args: P
 ) => {
   const [promise, resolve] = defer<R>();
@@ -59,7 +70,6 @@ export const sleep = <P extends unknown[], R>(
  * | 3   |  400 |  800 | 748  |
  * | 4   |  800 | 1600 | 1560 |
  * | 5   | 1600 | 3200 | 1696 |
- *
  */
 const delay = (attempt: number) => randomIntInclusive(100, 200) * (2 ** (attempt - 1));
 
@@ -91,12 +101,12 @@ const retryDefaults = { retries: 3, delay, retryOn };
  * @param options.retryOn function called after each failure. Default: throw if
  * attempt + 1 > retries
  */
-export const retry = <P extends unknown[], R>(fn: (...args: P) => Promise<R>,
-  options: Partial<typeof retryDefaults> = {}) => {
-  // eslint-disable-next-line @typescript-eslint/no-shadow
+export const retry = <P extends unknown[], R>(
+  fn: (...args: P) => Promise<R>,
+  options: Partial<typeof retryDefaults> = {},
+) => {
   const { retries, delay, retryOn } = { ...retryDefaults, ...options };
   let attempt = 0;
-  // eslint-disable-next-line @typescript-eslint/no-shadow
   const retry = async (...args: P): Promise<R> => {
     try {
       attempt += 1;

@@ -1,5 +1,3 @@
-/* eslint-disable import/prefer-default-export */
-
 // Waiting for ListFormat to be in official spec. It’s already available in
 // almost every platform:
 // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Intl/ListFormat
@@ -10,10 +8,10 @@ declare namespace Intl {
     constructor(
       locales?: string | string[],
       options?: {
-        style?: 'long' | 'short' | 'narrow',
-        type?: 'conjunction' | 'disjunction' | 'unit',
-        localeMatcher?: 'lookup' | 'best fit',
-      }
+        style?: 'long' | 'short' | 'narrow';
+        type?: 'conjunction' | 'disjunction' | 'unit';
+        localeMatcher?: 'lookup' | 'best fit';
+      },
     );
     public format(list?: Iterable<string>): string;
   }

@@ -1,0 +1,30 @@
+{
+  "compilerOptions": {
+    "allowJs": true,
+    "lib": ["dom", "dom.iterable", "deno.window"],
+    "strict": true
+  },
+  "lint": {
+    "files": {
+      "include": ["**/*.ts"],
+      "exclude": ["node_modules"]
+    },
+    "rules": {
+      "tags": ["recommended"],
+      "include": ["ban-untagged-todo"]
+    }
+  },
+  "fmt": {
+    "files": {
+      "include": ["*.ts", "dom/*.ts"],
+      "exclude": ["node_modules"]
+    },
+    "options": {
+      "useTabs": false,
+      "lineWidth": 100,
+      "indentWidth": 2,
+      "singleQuote": true,
+      "proseWrap": "always"
+    }
+  }
+}

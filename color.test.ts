@@ -1,18 +1,18 @@
-import test from 'ava';
+import { assertEquals, assertStrictEquals } from 'https://deno.land/std@0.112.0/testing/asserts.ts';
 import {
   blend, fromHex, fromRgb, parse, toHex, toRgb,
-} from './color';
+} from './color.ts';
 
-test('parse', (t) => {
-  t.deepEqual(toRgb(parse('#f00')), [255, 0, 0]);
-  t.deepEqual(toRgb(fromHex('#f00')), [255, 0, 0]);
-  t.is(toHex(parse([255, 0, 0])), '#ff0000');
-  t.is(toHex(fromRgb([255, 0, 0])), '#ff0000');
-  t.is(parse(0), 0);
-  t.is(parse(undefined as unknown as number), 0);
+Deno.test('parse', () => {
+  assertEquals(toRgb(parse('#f00')), [255, 0, 0]);
+  assertEquals(toRgb(fromHex('#f00')), [255, 0, 0]);
+  assertStrictEquals(toHex(parse([255, 0, 0])), '#ff0000');
+  assertStrictEquals(toHex(fromRgb([255, 0, 0])), '#ff0000');
+  assertStrictEquals(parse(0), 0);
+  assertStrictEquals(parse(undefined as unknown as number), 0);
 });
 
-test('blend', (t) => {
+Deno.test('blend', () => {
   const blender = blend('#000', '#888');
-  t.is(toHex(blender(0.5)), '#444444');
+  assertStrictEquals(toHex(blender(0.5)), '#444444');
 });

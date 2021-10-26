@@ -1,0 +1,30 @@
+# This workflow will test on Deno latest stable major and canary
+# see https://github.com/marketplace/actions/setup-deno for details
+name: Deno CI
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        deno-version:
+          - vx.x.x
+          - canary
+    steps:
+      - name: Clone repository
+        uses: actions/checkout@v2
+      - name: Set up Deno ${{ matrix.deno-version }}
+        uses: denoland/setup-deno@v1.0.0
+        with:
+          deno-version: ${{ matrix.deno }}
+      - name: Run tests
+        run: deno test --allow-net --coverage=coverage/tmp --ignore=node_modules
+      - name: Generate coverage
+        run: deno coverage coverage/tmp --lcov > coverage/lcov.info; sed -i.bak -E 's/SF:.*\/([^/]+\.ts)/SF:\1/' coverage/lcov.info; rm -f coverage/lcov.info.bak
+      - name: Upload coverage
+        uses: codecov/codecov-action@v2
+        if: matrix.deno-version == 1
+        with:
+          fail_ci_if_error: true
+          files: lcov.info
+          directory: coverage

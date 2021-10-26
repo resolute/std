@@ -1,12 +1,13 @@
-import test from 'ava';
-import { properName, mapObject } from './misc';
+import { assertStrictEquals, assertEquals } from 'https://deno.land/std@0.112.0/testing/asserts.ts';
 
-test('mapObject', (t) => {
+import { properName, mapObject } from './misc.ts';
+
+Deno.test('mapObject', () => {
   const a = { foo: 'a', bar: 'b', baz: 'c' };
   const b = { a: 1, b: 2 };
-  t.deepEqual(mapObject(a as { foo: 'a', bar: 'b' }, b), { foo: 1, bar: 2 });
+  assertEquals(mapObject(a as { foo: 'a', bar: 'b' }, b), { foo: 1, bar: 2 });
 });
 
-test('properName', (t) => {
-  t.is(properName("  ol' mcdonald, iv "), 'Ol’ McDonald, IV');
+Deno.test('properName', () => {
+  assertStrictEquals(properName("  ol' mcdonald, iv "), 'Ol’ McDonald, IV');
 });

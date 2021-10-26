@@ -25,7 +25,7 @@
     "sourceMap": false,
     "strict": true,
     "stripInternal": true,
-    "target": "esnext",
+    "target": "esnext"
   },
   "include": [
     "**/*.ts"
@@ -34,8 +34,5 @@
     "**/*.js",
     "**/*.cjs",
     "**/*.d.ts"
-  ],
-  "ts-node": {
-    "preferTsExts": true
-  }
+  ]
 }

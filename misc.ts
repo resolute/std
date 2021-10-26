@@ -1,7 +1,17 @@
 import {
-  coerce, string, spaces, proper, nonempty, trim, quotes,
-  email, prettyPhone, limit, isDefined,
-} from './coerce.js';
+  coerce,
+  email,
+  isDefined,
+  limit,
+  nonempty,
+  prettyPhone,
+  proper,
+  quotes,
+  spaces,
+  string,
+  trim,
+  // @ts-ignore tsc non-sense
+} from './coerce.ts';
 
 export const properName = coerce(string, spaces, trim, quotes, proper, nonempty, limit(100));
 
@@ -13,8 +23,9 @@ export const cleanPhone = coerce(string, prettyPhone);
  * Type guard against any tuples containing `undefined` or `null`.
  */
 export type MapNonNullable<T> = { [K in keyof T]: NonNullable<T[K]> };
-export const isDefinedTuple = <T extends readonly any[]>(tuple: T): tuple is MapNonNullable<T> =>
-  tuple.every(isDefined);
+export const isDefinedTuple = <T extends readonly unknown[]>(
+  tuple: T,
+): tuple is MapNonNullable<T> => tuple.every(isDefined);
 
 /**
  * Match the keys of `a` to the values of `b` by matching the values of `a` to

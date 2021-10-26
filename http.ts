@@ -1,11 +1,16 @@
 import {
-  coerce, string, within, array, instance,
-} from './coerce.js';
-import { conjunction } from './intl.js';
+  array,
+  coerce,
+  instance,
+  string,
+  within,
+  // @ts-ignore tsc non-sense
+} from './coerce.ts';
+// @ts-ignore tsc non-sense
+import { conjunction } from './intl.ts';
 
 /**
- * HttpError extends Error and adds a `status` property to be used when
- * sending the HTTP response.
+ * HttpError extends Error and adds a `status` property to be used when sending the HTTP response.
  */
 export class HttpError extends Error {
   public status: number;
@@ -33,7 +38,7 @@ export class HttpError extends Error {
  * Return the `status` of a HttpError, 500 of a `Error`, or otherwise undefined
  * if the value is not an Error.
  */
-export const statusCodeFromError = (value: any) => {
+export const statusCodeFromError = (value: unknown) => {
   if (value instanceof Error) {
     return (value as HttpError).status || 500;
   }
@@ -47,7 +52,7 @@ export const statusCodeFromError = (value: any) => {
  * JSON.stringify(new Error('foo'), replaceErrors);
  * // '{"message":"Error: foo"}'
  */
-export const replaceErrors = (_key: string, value: any) => {
+export const replaceErrors = (_key: string, value: unknown) => {
   if (value instanceof Error) {
     return {
       message: value.toString(),
@@ -72,7 +77,7 @@ export const method = <T extends string[]>(list: T) =>
  * Categorize Request or Response Content-Type as json, form, text, or blob.
  */
 export const categorizeContentType = (input: Request | Response) => {
-  const type = coerce(string)(input.headers.get('content-type'), '');
+  const type = coerce(string)(input.headers.get('content-type')!, '');
   if (type.includes('application/json')) {
     return 'json';
   }
@@ -102,7 +107,7 @@ export const contentTypeCategory = (list: ReturnType<typeof categorizeContentTyp
  * form data.
  */
 export const isFormOrJsonPostRequest = coerce(
-  instance(globalThis.Request),
+  instance(Request),
   method(['POST']),
   contentTypeCategory(['json', 'form']),
 );
@@ -110,7 +115,7 @@ export const isFormOrJsonPostRequest = coerce(
 /**
  * Respond to client with JSON
  */
-export const jsonResponse = (payload: any, status = 200) => {
+export const jsonResponse = (payload: unknown, status = 200) => {
   if (payload instanceof Response) {
     return payload;
   }
@@ -127,21 +132,16 @@ export const jsonResponse = (payload: any, status = 200) => {
  * (json/text/formData/arrayBuffer) based on the content-type header.
  */
 export const readBody = async (input: Request | Response) => {
-  // try {
   switch (categorizeContentType(input)) {
-    case 'json': return input.json();
-    case 'form': return Object.fromEntries((await input.formData()).entries());
-    case 'text': return input.text();
-    default: return input.arrayBuffer();
+    case 'json':
+      return input.json();
+    case 'form':
+      return Object.fromEntries((await input.formData()).entries());
+    case 'text':
+      return input.text();
+    default:
+      return input.arrayBuffer();
   }
-  // } catch (error) {
-  //   // Log internal errors.
-  //   // eslint-disable-next-line no-console
-  //   console.error(error);
-  // }
-  // // Only expose a more vague error indicating that there was some issue with
-  // // the request.
-  // throw new HttpError('Unable to read body.', 400);
 };
 
 /**

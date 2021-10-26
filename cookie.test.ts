@@ -1,51 +1,66 @@
-import test from 'ava';
-import 'isomorphic-fetch';
-import {
-  getDomCookies, getRequestCookies, parse, setDomCookie, setResponseCookie, stringify,
-} from './cookie';
+import { assertEquals, assertStrictEquals } from 'https://deno.land/std@0.112.0/testing/asserts.ts';
 
-test('parse', (t) => {
-  t.deepEqual(parse('a=b;b=%3D'), { a: 'b', b: '=' });
+import {
+  getDomCookies,
+  getRequestCookies,
+  parse,
+  setDomCookie,
+  setResponseCookie,
+  stringify,
+} from './cookie.ts';
+
+Deno.test('parse', () => {
+  assertEquals(parse('a=b;b=%3D'), { a: 'b', b: '=' });
 });
 
-test('stringify', (t) => {
-  t.is(stringify('key', 'value'), 'key=value;samesite=none;secure');
-  t.is(stringify('key', 'value', {
-    expires: new Date('2040-01-01'),
-    samesite: 'lax',
-    secure: false,
-  }), 'key=value;expires=Sun, 01 Jan 2040 00:00:00 GMT;samesite=lax');
-  t.is(stringify('key', ''), 'key=;expires=Thu, 01 Jan 1970 00:00:00 GMT;samesite=none;secure');
+Deno.test('stringify', () => {
+  assertStrictEquals(stringify('key', 'value'), 'key=value;samesite=none;secure');
+  assertStrictEquals(
+    stringify('key', 'value', {
+      expires: new Date('2040-01-01'),
+      samesite: 'lax',
+      secure: false,
+    }),
+    'key=value;expires=Sun, 01 Jan 2040 00:00:00 GMT;samesite=lax',
+  );
+  assertStrictEquals(
+    stringify('key', ''),
+    'key=;expires=Thu, 01 Jan 1970 00:00:00 GMT;samesite=none;secure',
+  );
 });
 
 declare global {
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   interface document {
     cookie: string;
   }
 }
-// @ts-ignore
+
+// @ts-ignore TODO reference global document in Deno
 globalThis.document = { cookie: '' };
 
-test('setDomCookie', (t) => {
+Deno.test('setDomCookie', () => {
   setDomCookie('key', 'value');
-  t.is(document.cookie, 'key=value;samesite=none;secure');
+  // @ts-ignore TODO reference global document in Deno
+  assertStrictEquals(document.cookie, 'key=value;samesite=none;secure');
 });
 
-test('getDomCookies', (t) => {
-  t.deepEqual(getDomCookies('a=b;b=%3D'), { a: 'b', b: '=' });
+Deno.test('getDomCookies', () => {
+  assertEquals(getDomCookies('a=b;b=%3D'), { a: 'b', b: '=' });
 });
 
-test('getRequestCookies', (t) => {
-  const request = new Request('/', {
+Deno.test('getRequestCookies', () => {
+  const request = new Request('file:///', {
     headers: new Headers({ cookie: 'a=b;b=%3D' }),
   });
-  t.deepEqual(getRequestCookies(request), { a: 'b', b: '=' });
+  assertEquals(getRequestCookies(request), { a: 'b', b: '=' });
 });
 
-test('setResponseCookie', (t) => {
+Deno.test('setResponseCookie', () => {
   const response = new Response('/');
   setResponseCookie(response, 'a', 'b');
   setResponseCookie(response, 'b', '=');
-  t.deepEqual(response.headers.get('set-cookie'), 'a=b;samesite=none;secure, b=%3D;samesite=none;secure');
+  assertEquals(
+    response.headers.get('set-cookie'),
+    'a=b;samesite=none;secure, b=%3D;samesite=none;secure',
+  );
 });

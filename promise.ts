@@ -8,7 +8,7 @@ export interface Keeper<R> {
 
 const empty = Symbol('Empty');
 
-const storage = new WeakMap<any, any>();
+const storage = new WeakMap<() => Promise<unknown>, unknown>();
 
 /**
  * Promise Keeper: caching for promises.
@@ -38,7 +38,7 @@ const storage = new WeakMap<any, any>();
 const keep = <R>(fn: () => Promise<R>) => {
   let settled: R | typeof empty = empty;
   let pending: Promise<R> | typeof empty = empty;
-  let timeout: NodeJS.Timeout | number | undefined;
+  let timeout: number | undefined;
 
   const invoke = () => fn().then((data) => {
     settled = data;
@@ -89,9 +89,8 @@ const keep = <R>(fn: () => Promise<R>) => {
    */
   const start = (delay = 1000 * 60 * 60 * 30) => {
     stop();
-    timeout = setTimeout(() => {
-      fresh().finally(start.bind(null, delay));
-    }, delay);
+    timeout = setInterval(fresh, delay) as unknown as number;
+    // @ts-ignore Node.js context, unref the timer
     timeout.unref?.();
   };
   return {

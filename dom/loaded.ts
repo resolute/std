@@ -28,7 +28,7 @@ export default (fn: FrameRequestCallback) => {
 };
 
 if (!loaded) {
-  window.addEventListener('load', () => {
+  addEventListener('load', () => {
     loaded = true;
     requestAnimationFrame(recurse);
   }, { once: true });

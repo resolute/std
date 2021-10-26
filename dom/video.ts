@@ -1,7 +1,9 @@
-export const playSafe = (video: HTMLVideoElement) => { video.play().catch(() => { }); };
+export const playSafe = (video: HTMLVideoElement) => {
+  video.play().catch(() => {});
+};
 
 const masterObserver = new IntersectionObserver((entries, observer) => {
-  // TODO pause video when not visible/intersecting
+  // TODO: pause video when not visible/intersecting
   for (const { target, isIntersecting } of entries) {
     if (isIntersecting) {
       const source = target.getAttribute('data-src')!;
@@ -28,7 +30,7 @@ const clearLoopTimer = (video: HTMLVideoElement) => {
   }
 };
 
-const pauseAndClear: Function = (video: HTMLVideoElement) => {
+const pauseAndClear = (video: HTMLVideoElement) => {
   video.pause();
   clearLoopTimer(video);
 };
@@ -37,7 +39,7 @@ export const finiteLoop = (videos: NodeListOf<HTMLVideoElement>, maxDuration = 1
   videos.forEach((video) => {
     video.addEventListener('play', () => {
       clearLoopTimer(video);
-      const newTimer = setTimeout(pauseAndClear, maxDuration, video);
+      const newTimer = setTimeout(pauseAndClear, maxDuration, video) as unknown as number;
       loopTimers.set(video, newTimer);
     });
   });

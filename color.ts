@@ -1,4 +1,5 @@
-import { range } from './math.js';
+// @ts-ignore tsc non-sense
+import { range } from './math.ts';
 
 /**
  * Convert a hex color code string to an integer. Accepts 6-character hex

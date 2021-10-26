@@ -7,11 +7,9 @@
  * 3. return the `otherwise` value
  */
 const failure = <U>(error: Error, otherwise: U) => {
-  // eslint-disable-next-line @typescript-eslint/no-use-before-define
   if (isFunction(otherwise)) {
     throw otherwise(error);
   }
-  // eslint-disable-next-line @typescript-eslint/no-use-before-define
   if (isInstance(Error)(otherwise)) {
     throw otherwise;
   }
@@ -21,8 +19,7 @@ const failure = <U>(error: Error, otherwise: U) => {
 /**
  * Pipe the input through coerce functions
  */
-const pipe = <V, C extends (value: any) => any>(value: V, coercer: C) =>
-  coercer(value);
+const pipe = <V, C extends (value: unknown) => unknown>(value: V, coercer: C) => coercer(value);
 
 /**
  * Handles issues where passing otherwise: undefined triggers the default
@@ -48,15 +45,15 @@ const params = (args: unknown[]) => {
  * coerce(string, trim, nonEmpty)('     ', undefined); // undefined
  * ```
  */
-export const coerce: Coerce = (...coercers: any[]) =>
-  (...args: unknown[]) => {
+export const coerce: Coerce = <A, Z>(...coercers: ((a: A) => Z)[]): Coercer<A, Z> =>
+  ((...args: unknown[]) => {
     const [value, otherwise] = params(args);
     try {
-      return coercers.reduce(pipe, value);
+      return (coercers as ((...args: unknown[]) => unknown)[]).reduce(pipe, value);
     } catch (error) {
       return failure(error as Error, otherwise);
     }
-  };
+  }) as Coercer<A, Z>;
 //#endregion
 
 //#region Type Guards
@@ -65,8 +62,7 @@ export const coerce: Coerce = (...coercers: any[]) =>
 /**
  * Type guard string
  */
-export const isString = (value: unknown): value is string =>
-  typeof value === 'string';
+export const isString = (value: unknown): value is string => typeof value === 'string';
 
 /**
  * Type guard number
@@ -77,14 +73,12 @@ export const isNumber = (value: unknown): value is number =>
 /**
  * Type guard bigint
  */
-export const isBigInt = (value: unknown): value is bigint =>
-  typeof value === 'bigint';
+export const isBigInt = (value: unknown): value is bigint => typeof value === 'bigint';
 
 /**
  * Type guard function
  */
-export const isFunction = (value: unknown): value is Function =>
-  typeof value === 'function';
+export const isFunction = (value: unknown): value is Function => typeof value === 'function';
 
 /**
  * Type guard object
@@ -95,8 +89,13 @@ export const isObject = (value: unknown): value is object =>
 /**
  * Type guard array
  */
-export const isArray = <T>(value: unknown): value is Array<T> =>
-  Array.isArray(value);
+export const isArray = <T, V>(value: Array<T> | V): value is Array<T> => Array.isArray(value);
+
+/**
+ * Type guard iterable
+ */
+export const isIterable = <T, V>(value: Iterable<T> | V): value is Iterable<T> =>
+  isObject(value) && (Symbol.iterator in value);
 
 /**
  * Type guard against `undefined` and `null`
@@ -270,14 +269,18 @@ interface CoerceBoolean {
 /**
  * Coerce value to boolean
  */
-export const boolean: CoerceBoolean =
-  (truthy: any = true, falsy: any = false, nully: any = falsy, undefy: any = falsy) =>
-    (value: unknown) => {
-      switch (typeof value) {
-        case 'undefined':
-          return undefy;
-        case 'string':
-          // eslint-disable-next-line no-case-declarations
+export const boolean: CoerceBoolean = (
+  truthy = true,
+  falsy = false,
+  nully = falsy,
+  undefy = falsy,
+) =>
+  (value: unknown) => {
+    switch (typeof value) {
+      case 'undefined':
+        return undefy;
+      case 'string':
+        {
           const trimmed = value.trim();
           if (trimmed === '' || trimmed === 'null') {
             return nully;
@@ -285,50 +288,44 @@ export const boolean: CoerceBoolean =
           if (trimmed === '0' || trimmed === 'false') {
             return falsy;
           }
-          break;
-        case 'number':
-          if (value === 0 || !Number.isFinite(value)) {
-            return falsy; // includes NaN
-          }
-          break;
-        default:
-          if (value === null) {
-            return nully;
-          }
-          break;
-      }
-      return value ? truthy : falsy;
-    };
+        }
+        break;
+      case 'number':
+        if (value === 0 || !Number.isFinite(value)) {
+          return falsy; // includes NaN
+        }
+        break;
+      default:
+        if (value === null) {
+          return nully;
+        }
+        break;
+    }
+    return value ? truthy : falsy;
+  };
 
 /**
  * Confirm `value` is Iterable
  */
-export const iterable = <T>(value: Iterable<T> | T) => {
-  try {
-    object(value);
-    func(value[Symbol.iterator]);
-    return value as Iterable<T>;
-  } catch {
-    throw new Error(`${value} is not iterable.`);
+export const iterable = <T extends Iterable<U>, U>(value: T) => {
+  if (isIterable(value)) {
+    return value;
   }
+  throw new TypeError(`${value} is not iterable.`);
 };
 
-interface CoerceArray {
-  <T>(input: Iterable<T>): T[];
-  <T>(input: T): T[];
-}
+type Iterated<T> = T extends Iterable<infer U> ? U : T;
+
 /**
  * `value` as an array if not an array
  */
-export const array: CoerceArray = <T, U>(value: Iterable<T> | U) => {
-  try {
-    // a `string` _is_ Iterable, but we do not want to return an array of
-    // characters
-    const iterableValue = coerce(nonstring, iterable)(value);
-    return [...iterableValue];
-  } catch {
-    return [value] as U[];
+export const array = <T>(value: T): (Iterated<T>)[] => {
+  // a `string` _is_ Iterable, but we do not want to return an array of
+  // characters
+  if (!isString(value) && isIterable(value)) {
+    return [...value] as (Iterated<T>)[];
   }
+  return [value] as (Iterated<T>)[];
 };
 
 //#endregion
@@ -339,8 +336,7 @@ export const array: CoerceArray = <T, U>(value: Iterable<T> | U) => {
 /**
  * Remove dangerous characters from string
  */
-export const safe = (value: string) =>
-  value.replace(/[\\|";/?<>()*[\]{}=`\t\r\n]/g, '');
+export const safe = (value: string) => value.replace(/[\\|";/?<>()*[\]{}=`\t\r\n]/g, '');
 
 /**
  * Replace leading and trailing whitespace from a string
@@ -348,8 +344,7 @@ export const safe = (value: string) =>
  * `spaces` before `trim` in order to remove these special SPACE characters from
  * the string.
  */
-export const trim = (value: string) =>
-  value.trim();
+export const trim = (value: string) => value.trim();
 
 /**
  * Replace all SPACE-like characters with a regular SPACE. Replace continuous
@@ -360,7 +355,6 @@ export const trim = (value: string) =>
 export const spaces = (value: string) =>
   value
     .replace(
-      // eslint-disable-next-line no-irregular-whitespace
       /[\u00A0\u1680\u180E\u2000-\u200B\u202F\u205F\u3000\uFEFF]/g,
       ' ',
     )
@@ -413,41 +407,40 @@ export const quotes = (value: string) =>
 /**
  * Capitalize the first letter of a string
  */
-export const ucfirst = (value: string) =>
-  value.charAt(0).toUpperCase() + value.slice(1);
+export const ucfirst = (value: string) => value.charAt(0).toUpperCase() + value.slice(1);
 export const ucFirst = ucfirst;
 
-const hasBothUpperAndLower = (value: string) =>
-  /[A-Z]/.test(value) && /[a-z]/.test(value);
+const hasBothUpperAndLower = (value: string) => /[A-Z]/.test(value) && /[a-z]/.test(value);
 
-const properNameCapitalizer = (mixedCase: boolean) => (match: string) => {
-  const lowerCaseMatch = match.toLowerCase();
-  // single letters should be uppercase (middle initials, etc.)
-  if (match.length === 1) {
-    return match.toUpperCase();
-  }
-  if (match.length <= 3) {
-    // suffixes that should be all uppercase
-    if (['ii', 'iii', 'iv', 'v'].indexOf(lowerCaseMatch) > -1) {
+const properNameCapitalizer = (mixedCase: boolean) =>
+  (match: string) => {
+    const lowerCaseMatch = match.toLowerCase();
+    // single letters should be uppercase (middle initials, etc.)
+    if (match.length === 1) {
       return match.toUpperCase();
     }
-    // compound names that should be lowercase
-    if (['dit', 'de', 'von'].indexOf(lowerCaseMatch) > -1) {
-      return lowerCaseMatch;
+    if (match.length <= 3) {
+      // suffixes that should be all uppercase
+      if (['ii', 'iii', 'iv', 'v'].indexOf(lowerCaseMatch) > -1) {
+        return match.toUpperCase();
+      }
+      // compound names that should be lowercase
+      if (['dit', 'de', 'von'].indexOf(lowerCaseMatch) > -1) {
+        return lowerCaseMatch;
+      }
+      if (mixedCase) {
+        return match;
+      }
     }
-    if (mixedCase) {
-      return match;
-    }
-  }
-  return (
-    ucfirst(lowerCaseMatch)
-      // McXx, MacXx, O’Xx, D’Xx
-      .replace(
-        /^(ma?c|[od]’)(\S{2,}$)/i,
-        (_m, p1, p2) => ucfirst(p1) + ucfirst(p2),
-      )
-  );
-};
+    return (
+      ucfirst(lowerCaseMatch)
+        // McXx, MacXx, O’Xx, D’Xx
+        .replace(
+          /^(ma?c|[od]’)(\S{2,}$)/i,
+          (_m, p1, p2) => ucfirst(p1) + ucfirst(p2),
+        )
+    );
+  };
 
 /**
  * Fix capitalization of proper nouns: names, addresses
@@ -465,8 +458,7 @@ export const proper = (value: string) =>
 /**
  * Format email addresses
  */
-export const email = (value: string) =>
-  nonempty(value.toLowerCase().replace(/\s+/g, ''));
+export const email = (value: string) => nonempty(value.toLowerCase().replace(/\s+/g, ''));
 
 /**
  * Strip all non-digit characters from string
@@ -531,15 +523,15 @@ export const limit = (max: number) =>
    * Limit the value of a `number`, characters in a `string`, or items in an
    * `array`
    */
-  <T extends number | string | unknown[]>(value: T) => {
+  (value: number | string | unknown[]) => {
     if (isNumber(value)) {
-      return Math.min(value, max) as T;
+      return Math.min(value, max);
     }
     if (isString(value)) {
-      return value.slice(0, max) as T;
+      return value.slice(0, max);
     }
     if (isArray(value)) {
-      return value.slice(0, max) as T;
+      return value.slice(0, max);
     }
     throw new TypeError(`Unable to apply a max of ${max} to ${value}`);
   };
@@ -569,67 +561,57 @@ export const split = (separator = /[,\r\n\s]+/g) =>
 //#region Types
 // -----------------------------------------------------------------------------
 
-export interface Coercer<O = never> {
-  <E>(value: unknown, otherwise: E): O | Exclude<E, Error | Function>;
-  <I>(value: I): [O] extends [never] ? I : O;
+export interface Coercer<I, O> {
+  <E>(value: I, otherwise: E): O | Exclude<E, Error | Function>;
+  (value: I): O;
 }
 
 export interface Coerce {
-  (): Coercer<never>;
-  <A extends ReadonlyArray<unknown>, B>(
-    ab: (...a: A) => B
-  ): Coercer<B>;
-  <A extends ReadonlyArray<unknown>, B, C>(
-    ab: (...a: A) => B,
-    bc: (b: B) => C
-  ): Coercer<C>;
-  <A extends ReadonlyArray<unknown>, B, C, D>(
-    ab: (...a: A) => B,
+  (): <I>(value: I) => I;
+  <A, B>(
+    ab: (a: A) => B,
+  ): Coercer<A, B>;
+  <A, B, C>(
+    ab: (a: A) => B,
     bc: (b: B) => C,
-    cd: (c: C) => D
-  ): Coercer<D>;
-  <A extends ReadonlyArray<unknown>, B, C, D, E>(
-    ab: (...a: A) => B,
+  ): Coercer<A, C>;
+  <A, B, C, D>(
+    ab: (a: A) => B,
     bc: (b: B) => C,
     cd: (c: C) => D,
-    de: (d: D) => E
-  ): Coercer<E>;
-  <A extends ReadonlyArray<unknown>, B, C, D, E, F>(
-    ab: (...a: A) => B,
+  ): Coercer<A, D>;
+  <A, B, C, D, E>(
+    ab: (a: A) => B,
     bc: (b: B) => C,
     cd: (c: C) => D,
     de: (d: D) => E,
-    ef: (e: E) => F
-  ): Coercer<F>;
-  <A extends ReadonlyArray<unknown>, B, C, D, E, F, G>(
-    ab: (...a: A) => B,
+  ): Coercer<A, E>;
+  <A, B, C, D, E, F>(
+    ab: (a: A) => B,
     bc: (b: B) => C,
     cd: (c: C) => D,
     de: (d: D) => E,
     ef: (e: E) => F,
-    fg: (f: F) => G
-  ): Coercer<G>;
-  <A extends ReadonlyArray<unknown>, B, C, D, E, F, G, H>(
-    ab: (...a: A) => B,
+  ): Coercer<A, F>;
+  <A, B, C, D, E, F, G>(
+    ab: (a: A) => B,
     bc: (b: B) => C,
     cd: (c: C) => D,
     de: (d: D) => E,
     ef: (e: E) => F,
     fg: (f: F) => G,
-    gh: (g: G) => H
-  ): Coercer<H>;
-  <A extends ReadonlyArray<unknown>, B, C, D, E, F, G, H, I>(
-    ab: (...a: A) => B,
+  ): Coercer<A, G>;
+  <A, B, C, D, E, F, G, H>(
+    ab: (a: A) => B,
     bc: (b: B) => C,
     cd: (c: C) => D,
     de: (d: D) => E,
     ef: (e: E) => F,
     fg: (f: F) => G,
     gh: (g: G) => H,
-    hi: (h: H) => I
-  ): Coercer<I>;
-  <A extends ReadonlyArray<unknown>, B, C, D, E, F, G, H, I, J>(
-    ab: (...a: A) => B,
+  ): Coercer<A, H>;
+  <A, B, C, D, E, F, G, H, I>(
+    ab: (a: A) => B,
     bc: (b: B) => C,
     cd: (c: C) => D,
     de: (d: D) => E,
@@ -637,11 +619,21 @@ export interface Coerce {
     fg: (f: F) => G,
     gh: (g: G) => H,
     hi: (h: H) => I,
-    ij: (i: I) => J
-  ): Coercer<J>;
-  <A extends unknown, Z>(
+  ): Coercer<A, I>;
+  <A, B, C, D, E, F, G, H, I, J>(
+    ab: (a: A) => B,
+    bc: (b: B) => C,
+    cd: (c: C) => D,
+    de: (d: D) => E,
+    ef: (e: E) => F,
+    fg: (f: F) => G,
+    gh: (g: G) => H,
+    hi: (h: H) => I,
+    ij: (i: I) => J,
+  ): Coercer<A, J>;
+  <A, Z>(
     ...az: ((a: A) => Z)[]
-  ): Coercer<Z>;
+  ): Coercer<A, Z>;
 }
 //#endregion
 

@@ -1,17 +1,20 @@
-import test from 'ava';
-import 'isomorphic-fetch';
+import {
+  assertEquals, assertStrictEquals, assertObjectMatch,
+  assertThrowsAsync, assertThrows, assertExists,
+} from 'https://deno.land/std@0.112.0/testing/asserts.ts';
+
 import {
   HttpError, isFormOrJsonPostRequest, readBody,
-  statusCodeFromError, jsonResponse, readResponseError, fetchOk, fetchPass,
-} from './http';
+  statusCodeFromError, jsonResponse, readResponseError, fetchOk, fetchPass, method,
+} from './http.ts';
 
-const testGetRequest = new Request('/foo');
+const testGetRequest = new Request('file:///foo');
 
-const testPutRequest = new Request('/foo', {
+const testPutRequest = new Request('file:///foo', {
   method: 'PUT',
 });
 
-const testJsonRequest = new Request('/foo', {
+const testJsonRequest = new Request('file:///foo', {
   method: 'POST',
   headers: new Headers({
     'content-type': 'application/json',
@@ -37,7 +40,7 @@ const testJsonResponseInvalid = new Response(
   },
 );
 
-const testFormRequest = new Request('/foo', {
+const testFormRequest = new Request('file:///foo', {
   method: 'POST',
   headers: new Headers({
     'content-type': 'form-data',
@@ -45,16 +48,17 @@ const testFormRequest = new Request('/foo', {
   body: new URLSearchParams({ foo: 'bar' }),
 });
 
-// const testFormResponse = new Response(
-//   new URLSearchParams({ foo: 'bar' }),
-// );
-// const testFormResponse = new Response((() => {
-//   const formData = new FormData();
-//   formData.append('foo', 'bar');
-//   return formData;
-// })));
+const testUrlSearchParamsResponse = new Response(
+  new URLSearchParams({ foo: 'bar' }),
+);
 
-const testTextRequest = new Request('/foo', {
+const testFormDataResponse = new Response((() => {
+  const formData = new FormData();
+  formData.append('foo', 'bar');
+  return formData;
+})());
+
+const testTextRequest = new Request('file:///foo', {
   method: 'POST',
   headers: new Headers({
     'content-type': 'text/plain',
@@ -71,7 +75,7 @@ const testTextResponse = new Response(
   },
 );
 
-const testBlobRequest = new Request('/foo', {
+const testBlobRequest = new Request('file:///foo', {
   method: 'POST',
   headers: new Headers({
     'content-type': 'application/octet-stream',
@@ -88,68 +92,73 @@ const testBlobResponse = new Response(
   },
 );
 
-test('statusCodeFromError', (t) => {
-  t.is(statusCodeFromError(new Error('foo')), 500);
-  t.is(statusCodeFromError({}), undefined);
+Deno.test('statusCodeFromError', () => {
+  assertStrictEquals(statusCodeFromError(new Error('foo')), 500);
+  assertStrictEquals(statusCodeFromError({}), undefined);
 });
 
-test('isFormOrJsonPostRequest', (t) => {
-  t.throws(() => { isFormOrJsonPostRequest(testGetRequest); });
-  t.throws(() => { isFormOrJsonPostRequest(testPutRequest); });
-  t.throws(() => { isFormOrJsonPostRequest(testTextRequest); });
-  t.throws(() => { isFormOrJsonPostRequest(testBlobRequest); });
-  t.notThrows(() => { isFormOrJsonPostRequest(testJsonRequest); });
-  t.notThrows(() => { isFormOrJsonPostRequest(testFormRequest); });
+Deno.test('method', () => {
+  assertStrictEquals(method(['GET'])(testGetRequest), testGetRequest);
+  assertThrows(() => { method(['POST'])(testGetRequest); }, HttpError);
 });
 
-test('readBody', async (t) => {
-  await t.throwsAsync(() => readBody({} as Response), { instanceOf: TypeError });
-  await t.throwsAsync(() => readBody(testJsonResponseInvalid));
-  t.is(await readBody(testTextRequest), 'foo: bar');
-  t.deepEqual(await readBody(testJsonRequest), { foo: 'bar' });
-  t.deepEqual(await readBody(testBlobRequest), new Uint8Array([1, 2, 3, 4]).buffer);
-  t.is(await readBody(testTextResponse), 'foo: bar');
-  t.deepEqual(await readBody(testJsonResponse), { foo: 'bar' });
-  t.deepEqual(await readBody(testBlobResponse), new Uint8Array([1, 2, 3, 4]).buffer);
-  // TODO: unable to test Response.formData()
-  // t.notThrows(() => { readBody(formResponse); });
+Deno.test('isFormOrJsonPostRequest', () => {
+  assertThrows(() => { isFormOrJsonPostRequest(testGetRequest); });
+  assertThrows(() => { isFormOrJsonPostRequest(testPutRequest); });
+  assertThrows(() => { isFormOrJsonPostRequest(testTextRequest); });
+  assertThrows(() => { isFormOrJsonPostRequest(testBlobRequest); });
+  assertStrictEquals(isFormOrJsonPostRequest(testJsonRequest), testJsonRequest);
+  assertStrictEquals(isFormOrJsonPostRequest(testFormRequest), testFormRequest);
 });
 
-test('jsonResponse', (t) => {
+Deno.test('readBody', async () => {
+  await assertThrowsAsync(() => readBody({} as Response), TypeError);
+  await assertThrowsAsync(() => readBody(testJsonResponseInvalid));
+  assertStrictEquals(await readBody(testTextRequest), 'foo: bar');
+  assertEquals(await readBody(testJsonRequest), { foo: 'bar' });
+  assertEquals(await readBody(testBlobRequest), new Uint8Array([1, 2, 3, 4]).buffer);
+  assertStrictEquals(await readBody(testTextResponse), 'foo: bar');
+  assertEquals(await readBody(testJsonResponse), { foo: 'bar' });
+  assertEquals(await readBody(testBlobResponse), new Uint8Array([1, 2, 3, 4]).buffer);
+  assertEquals(await readBody(testUrlSearchParamsResponse), { foo: 'bar' });
+  assertEquals(await readBody(testFormDataResponse), { foo: 'bar' });
+});
+
+Deno.test('jsonResponse', () => {
   const original = jsonResponse({ foo: 'bar' });
   const duplicate = jsonResponse(original);
-  t.is(original, duplicate);
+  assertStrictEquals(original, duplicate);
 });
 
-test('readResponseError', async (t) => {
+Deno.test('readResponseError', async () => {
   const explicit = jsonResponse(new HttpError('not found', 404));
   const explicitError = await readResponseError(explicit);
-  t.like(explicitError, { message: 'not found', status: 404 });
+  assertObjectMatch(explicitError, { message: 'not found', status: 404 });
   const implicit = jsonResponse('', 404);
   const implicitError = await readResponseError(implicit);
-  t.like(implicitError, { status: 404 });
+  assertObjectMatch(implicitError, { status: 404 });
 });
 
-test('fetchOk', async (t) => {
+Deno.test('fetchOk', async () => {
   await Promise.all([
-    t.notThrowsAsync(() => fetchOk('https://httpstat.us/200')),
-    t.notThrowsAsync(() => fetchOk('https://httpstat.us/301')),
-    t.throwsAsync(() => fetchOk('https://httpstat.us/301', { redirect: 'manual' }), { instanceOf: HttpError }),
-    t.throwsAsync(() => fetchOk('https://httpstat.us/301', { redirect: 'error' }), { instanceOf: Error }),
-    t.throwsAsync(() => fetchOk('https://httpstat.us/404'), { instanceOf: HttpError }),
-    t.throwsAsync(() => fetchOk('https://httpstat.us/500'), { instanceOf: HttpError }),
+    (async () => assertExists(await fetchOk('https://httpstat.us/200').then(readBody)))(),
+    (async () => assertExists(await fetchOk('https://httpstat.us/301').then(readBody)))(),
+    assertThrowsAsync(() => fetchOk('https://httpstat.us/301', { redirect: 'manual' }), HttpError),
+    assertThrowsAsync(() => fetchOk('https://httpstat.us/301', { redirect: 'error' }), Error),
+    assertThrowsAsync(() => fetchOk('https://httpstat.us/404'), HttpError),
+    assertThrowsAsync(() => fetchOk('https://httpstat.us/500'), HttpError),
   ]);
 });
 
-test('fetchPass', async (t) => {
+Deno.test('fetchPass', async () => {
   await Promise.all([
-    t.notThrowsAsync(() => fetchPass(200, 'https://httpstat.us/200')),
-    t.notThrowsAsync(() => fetchPass(200, 'https://httpstat.us/301')),
-    t.throwsAsync(() => fetchPass(200, 'https://httpstat.us/301', { redirect: 'manual' }), { instanceOf: HttpError }),
-    t.notThrowsAsync(() => fetchPass(301, 'https://httpstat.us/301', { redirect: 'manual' })),
-    t.throwsAsync(() => fetchPass(200, 'https://httpstat.us/301', { redirect: 'error' }), { instanceOf: Error }),
-    t.throwsAsync(() => fetchPass([200, 404], 'https://httpstat.us/403'), { instanceOf: HttpError }),
-    t.notThrowsAsync(() => fetchPass([200, 404], 'https://httpstat.us/404')),
-    t.throwsAsync(() => fetchPass(200, 'https://httpstat.us/500'), { instanceOf: HttpError }),
+    (async () => assertExists(await fetchPass(200, 'https://httpstat.us/200').then(readBody)))(),
+    (async () => assertExists(await fetchPass(200, 'https://httpstat.us/301').then(readBody)))(),
+    assertThrowsAsync(() => fetchPass(200, 'https://httpstat.us/301', { redirect: 'manual' }), HttpError),
+    (async () => assertExists(await fetchPass(301, 'https://httpstat.us/301', { redirect: 'manual' }).then(readBody)))(),
+    assertThrowsAsync(() => fetchPass(200, 'https://httpstat.us/301', { redirect: 'error' }), Error),
+    assertThrowsAsync(() => fetchPass([200, 404], 'https://httpstat.us/403'), HttpError),
+    (async () => assertExists(await fetchPass([200, 404], 'https://httpstat.us/404').then(readBody)))(),
+    assertThrowsAsync(() => fetchPass(200, 'https://httpstat.us/500'), HttpError),
   ]);
 });

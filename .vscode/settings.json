@@ -14,30 +14,30 @@
     "**/*.js": true,
     "**/*.js.map": true,
     "**/*.cjs": true,
-    "**/*.mjs": true,
+    "**/*.mjs": true
   },
   "editor.codeActionsOnSave": {
     "source.fixAll.eslint": true
   },
   "editor.formatOnSave": false,
   "[markdown]": {
-    "editor.defaultFormatter": "yzhang.markdown-all-in-one",
+    "editor.defaultFormatter": "denoland.vscode-deno",
     "editor.formatOnSave": true
   },
   "[typescript]": {
-    "editor.defaultFormatter": "vscode.typescript-language-features",
+    "editor.defaultFormatter": "denoland.vscode-deno",
     "editor.formatOnSave": true
   },
   "[javascript]": {
-    "editor.defaultFormatter": "vscode.typescript-language-features",
+    "editor.defaultFormatter": "denoland.vscode-deno",
     "editor.formatOnSave": true
   },
   "[json]": {
-    "editor.defaultFormatter": "vscode.json-language-features",
+    "editor.defaultFormatter": "denoland.vscode-deno",
     "editor.formatOnSave": true
   },
   "[jsonc]": {
-    "editor.defaultFormatter": "vscode.json-language-features",
+    "editor.defaultFormatter": "denoland.vscode-deno",
     "editor.formatOnSave": true
   },
   "cSpell.words": [
@@ -45,8 +45,11 @@
     "chainable",
     "codecov",
     "D’Xx",
+    "Deno",
+    "denoland",
     "easings",
     "endregion",
+    "httponly",
     "Mutators",
     "nonstring",
     "o'donnel",
@@ -54,5 +57,9 @@
     "O’Xx",
     "promisifying",
     "ucfirst"
-  ]
+  ],
+  "deno.enable": true,
+  "deno.lint": true,
+  "deno.unstable": true,
+  "deno.config": "deno.json"
 }
