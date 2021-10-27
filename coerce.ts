@@ -78,11 +78,13 @@ export const isBigInt = (value: unknown): value is bigint => typeof value === 'b
 /**
  * Type guard function
  */
+// deno-lint-ignore ban-types
 export const isFunction = (value: unknown): value is Function => typeof value === 'function';
 
 /**
  * Type guard object
  */
+// deno-lint-ignore ban-types
 export const isObject = (value: unknown): value is object =>
   typeof value === 'object' && value !== null;
 
@@ -106,6 +108,7 @@ export const isDefined = <T>(value: T): value is NonNullable<T> =>
 /**
  * Type guard instance
  */
+// deno-lint-ignore no-explicit-any
 export const isInstance = <T extends (new (...args: any[]) => any)>(constructor: T) =>
   (value: unknown): value is InstanceType<T> =>
     isFunction(constructor) && value instanceof constructor;
@@ -190,6 +193,7 @@ export const func = <T>(value: T) => {
 /**
  * Confirm value is `instanceof` …
  */
+// deno-lint-ignore no-explicit-any
 export const instance = <T extends (new (...args: any[]) => any)>(constructor: T) =>
   (value: unknown) => {
     if (isInstance(constructor)(value)) {
@@ -201,6 +205,7 @@ export const instance = <T extends (new (...args: any[]) => any)>(constructor: T
 /**
  * Confirm the `value` is within `list` (a.k.a. Enum)
  */
+// deno-lint-ignore ban-types
 export const within = <T extends string | number | boolean | object>(list: T[]) =>
   /**
    * Confirm the `value` is within `list` (a.k.a. Enum)
@@ -537,6 +542,21 @@ export const limit = (max: number) =>
   };
 
 /**
+ * Require the length of the input to be exactly `size`.
+ */
+export const length = (size: number) =>
+  /**
+   * Limit the value of a `number`, characters in a `string`, or items in an
+   * `array`
+   */
+  <T extends { length: number }>(value: T) => {
+    if (value?.length === size) {
+      return value;
+    }
+    throw new TypeError(`${value} must be of length ${size}.`);
+  };
+
+/**
  * Split a string into an array. Optionally define a separator RegExp. Default
  * separator is comma, newline, space, tab.
  * @param separator default: `/[,\r\n\s]+/g` commas, newlines, spaces, tabs
@@ -562,6 +582,7 @@ export const split = (separator = /[,\r\n\s]+/g) =>
 // -----------------------------------------------------------------------------
 
 export interface Coercer<I, O> {
+  // deno-lint-ignore ban-types
   <E>(value: I, otherwise: E): O | Exclude<E, Error | Function>;
   (value: I): O;
 }
@@ -569,70 +590,70 @@ export interface Coercer<I, O> {
 export interface Coerce {
   (): <I>(value: I) => I;
   <A, B>(
-    ab: (a: A) => B,
+    ab: <A1>(a: A) => B,
   ): Coercer<A, B>;
   <A, B, C>(
-    ab: (a: A) => B,
-    bc: (b: B) => C,
+    ab: <A1>(a: A) => B,
+    bc: <B1>(b: B) => C,
   ): Coercer<A, C>;
   <A, B, C, D>(
-    ab: (a: A) => B,
-    bc: (b: B) => C,
-    cd: (c: C) => D,
+    ab: <A1>(a: A) => B,
+    bc: <B1>(b: B) => C,
+    cd: <C1>(c: C) => D,
   ): Coercer<A, D>;
   <A, B, C, D, E>(
-    ab: (a: A) => B,
-    bc: (b: B) => C,
-    cd: (c: C) => D,
-    de: (d: D) => E,
+    ab: <A1>(a: A) => B,
+    bc: <B1>(b: B) => C,
+    cd: <C1>(c: C) => D,
+    de: <D1>(d: D) => E,
   ): Coercer<A, E>;
   <A, B, C, D, E, F>(
-    ab: (a: A) => B,
-    bc: (b: B) => C,
-    cd: (c: C) => D,
-    de: (d: D) => E,
-    ef: (e: E) => F,
+    ab: <A1>(a: A) => B,
+    bc: <B1>(b: B) => C,
+    cd: <C1>(c: C) => D,
+    de: <D1>(d: D) => E,
+    ef: <E1>(e: E) => F,
   ): Coercer<A, F>;
   <A, B, C, D, E, F, G>(
-    ab: (a: A) => B,
-    bc: (b: B) => C,
-    cd: (c: C) => D,
-    de: (d: D) => E,
-    ef: (e: E) => F,
-    fg: (f: F) => G,
+    ab: <A1>(a: A) => B,
+    bc: <B1>(b: B) => C,
+    cd: <C1>(c: C) => D,
+    de: <D1>(d: D) => E,
+    ef: <E1>(e: E) => F,
+    fg: <F1>(f: F) => G,
   ): Coercer<A, G>;
   <A, B, C, D, E, F, G, H>(
-    ab: (a: A) => B,
-    bc: (b: B) => C,
-    cd: (c: C) => D,
-    de: (d: D) => E,
-    ef: (e: E) => F,
-    fg: (f: F) => G,
-    gh: (g: G) => H,
+    ab: <A1>(a: A) => B,
+    bc: <B1>(b: B) => C,
+    cd: <C1>(c: C) => D,
+    de: <D1>(d: D) => E,
+    ef: <E1>(e: E) => F,
+    fg: <F1>(f: F) => G,
+    gh: <G1>(g: G) => H,
   ): Coercer<A, H>;
   <A, B, C, D, E, F, G, H, I>(
-    ab: (a: A) => B,
-    bc: (b: B) => C,
-    cd: (c: C) => D,
-    de: (d: D) => E,
-    ef: (e: E) => F,
-    fg: (f: F) => G,
-    gh: (g: G) => H,
-    hi: (h: H) => I,
+    ab: <A1>(a: A) => B,
+    bc: <B1>(b: B) => C,
+    cd: <C1>(c: C) => D,
+    de: <D1>(d: D) => E,
+    ef: <E1>(e: E) => F,
+    fg: <F1>(f: F) => G,
+    gh: <G1>(g: G) => H,
+    hi: <H1>(h: H) => I,
   ): Coercer<A, I>;
   <A, B, C, D, E, F, G, H, I, J>(
-    ab: (a: A) => B,
-    bc: (b: B) => C,
-    cd: (c: C) => D,
-    de: (d: D) => E,
-    ef: (e: E) => F,
-    fg: (f: F) => G,
-    gh: (g: G) => H,
-    hi: (h: H) => I,
-    ij: (i: I) => J,
+    ab: <A1>(a: A) => B,
+    bc: <B1>(b: B) => C,
+    cd: <C1>(c: C) => D,
+    de: <D1>(d: D) => E,
+    ef: <E1>(e: E) => F,
+    fg: <F1>(f: F) => G,
+    gh: <G1>(g: G) => H,
+    hi: <H1>(h: H) => I,
+    ij: <I1>(i: I) => J,
   ): Coercer<A, J>;
   <A, Z>(
-    ...az: ((a: A) => Z)[]
+    ...az: (<A1>(a: A) => Z)[]
   ): Coercer<A, Z>;
 }
 //#endregion
