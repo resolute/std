@@ -1,3 +1,5 @@
+// deno-lint-ignore-file no-explicit-any
+
 //#region Coerce
 // -----------------------------------------------------------------------------
 
@@ -108,7 +110,6 @@ export const isDefined = <T>(value: T): value is NonNullable<T> =>
 /**
  * Type guard instance
  */
-// deno-lint-ignore no-explicit-any
 export const isInstance = <T extends (new (...args: any[]) => any)>(constructor: T) =>
   (value: unknown): value is InstanceType<T> =>
     isFunction(constructor) && value instanceof constructor;
@@ -193,7 +194,6 @@ export const func = <T>(value: T) => {
 /**
  * Confirm value is `instanceof` …
  */
-// deno-lint-ignore no-explicit-any
 export const instance = <T extends (new (...args: any[]) => any)>(constructor: T) =>
   (value: unknown) => {
     if (isInstance(constructor)(value)) {
@@ -625,72 +625,100 @@ export interface Coercer<I, O> {
 
 export interface Coerce {
   (): <I>(value: I) => I;
-  <A, B>(
-    ab: (a: A) => B,
-  ): Coercer<A, B>;
-  <A, B, C>(
-    ab: (a: A) => B,
-    bc: (b: B) => C,
-  ): Coercer<A, C>;
-  <A, B, C, D>(
-    ab: (a: A) => B,
-    bc: (b: B) => C,
-    cd: (c: C) => D,
-  ): Coercer<A, D>;
-  <A, B, C, D, E>(
-    ab: (a: A) => B,
-    bc: (b: B) => C,
-    cd: (c: C) => D,
-    de: (d: D) => E,
-  ): Coercer<A, E>;
-  <A, B, C, D, E, F>(
-    ab: (a: A) => B,
-    bc: (b: B) => C,
-    cd: (c: C) => D,
-    de: (d: D) => E,
-    ef: (e: E) => F,
-  ): Coercer<A, F>;
-  <A, B, C, D, E, F, G>(
-    ab: (a: A) => B,
-    bc: (b: B) => C,
-    cd: (c: C) => D,
-    de: (d: D) => E,
-    ef: (e: E) => F,
-    fg: (f: F) => G,
-  ): Coercer<A, G>;
-  <A, B, C, D, E, F, G, H>(
-    ab: (a: A) => B,
-    bc: (b: B) => C,
-    cd: (c: C) => D,
-    de: (d: D) => E,
-    ef: (e: E) => F,
-    fg: (f: F) => G,
-    gh: (g: G) => H,
-  ): Coercer<A, H>;
-  <A, B, C, D, E, F, G, H, I>(
-    ab: (a: A) => B,
-    bc: (b: B) => C,
-    cd: (c: C) => D,
-    de: (d: D) => E,
-    ef: (e: E) => F,
-    fg: (f: F) => G,
-    gh: (g: G) => H,
-    hi: (h: H) => I,
-  ): Coercer<A, I>;
-  <A, B, C, D, E, F, G, H, I, J>(
-    ab: (a: A) => B,
-    bc: (b: B) => C,
-    cd: (c: C) => D,
-    de: (d: D) => E,
-    ef: (e: E) => F,
-    fg: (f: F) => G,
-    gh: (g: G) => H,
-    hi: (h: H) => I,
-    ij: (i: I) => J,
-  ): Coercer<A, J>;
-  <A, Z>(
-    ...az: ((a: A) => Z)[]
-  ): Coercer<A, Z>;
+  <A extends (...args: any[]) => any, B extends (value: ReturnType<A>) => any>(
+    a: A,
+  ): Coercer<Parameters<A>[0], ReturnType<A>>;
+  <A extends (...args: any[]) => any, B extends (value: ReturnType<A>) => any>(
+    a: A,
+    b: B,
+  ): Coercer<Parameters<A>[0], ReturnType<B>>;
+  <
+    A extends (...args: any[]) => any,
+    B extends (value: ReturnType<A>) => any,
+    C extends (value: ReturnType<B>) => any,
+  >(
+    a: A,
+    b: B,
+    c: C,
+  ): Coercer<Parameters<A>[0], ReturnType<C>>;
+  <
+    A extends (...args: any[]) => any,
+    B extends (value: ReturnType<A>) => any,
+    C extends (value: ReturnType<B>) => any,
+    D extends (value: ReturnType<C>) => any,
+  >(
+    a: A,
+    b: B,
+    c: C,
+    d: D,
+  ): Coercer<Parameters<A>[0], ReturnType<D>>;
+  <
+    A extends (...args: any[]) => any,
+    B extends (value: ReturnType<A>) => any,
+    C extends (value: ReturnType<B>) => any,
+    D extends (value: ReturnType<C>) => any,
+    E extends (value: ReturnType<D>) => any,
+  >(
+    a: A,
+    b: B,
+    c: C,
+    d: D,
+    e: E,
+  ): Coercer<Parameters<A>[0], ReturnType<E>>;
+  <
+    A extends (...args: any[]) => any,
+    B extends (value: ReturnType<A>) => any,
+    C extends (value: ReturnType<B>) => any,
+    D extends (value: ReturnType<C>) => any,
+    E extends (value: ReturnType<D>) => any,
+    F extends (value: ReturnType<E>) => any,
+  >(
+    a: A,
+    b: B,
+    c: C,
+    d: D,
+    e: E,
+    f: F,
+  ): Coercer<Parameters<A>[0], ReturnType<F>>;
+  <
+    A extends (...args: any[]) => any,
+    B extends (value: ReturnType<A>) => any,
+    C extends (value: ReturnType<B>) => any,
+    D extends (value: ReturnType<C>) => any,
+    E extends (value: ReturnType<D>) => any,
+    F extends (value: ReturnType<E>) => any,
+    G extends (value: ReturnType<F>) => any,
+  >(
+    a: A,
+    b: B,
+    c: C,
+    d: D,
+    e: E,
+    f: F,
+    g: G,
+  ): Coercer<Parameters<A>[0], ReturnType<G>>;
+  <
+    A extends (...args: any[]) => any,
+    B extends (value: ReturnType<A>) => any,
+    C extends (value: ReturnType<B>) => any,
+    D extends (value: ReturnType<C>) => any,
+    E extends (value: ReturnType<D>) => any,
+    F extends (value: ReturnType<E>) => any,
+    G extends (value: ReturnType<F>) => any,
+    H extends (value: ReturnType<G>) => any,
+  >(
+    a: A,
+    b: B,
+    c: C,
+    d: D,
+    e: E,
+    f: F,
+    g: G,
+    h: H,
+  ): Coercer<Parameters<A>[0], ReturnType<H>>;
+  <AZ extends (...args: any[]) => any>(
+    ...az: AZ[]
+  ): Coercer<Parameters<AZ>[0], ReturnType<AZ>>;
 }
 //#endregion
 
