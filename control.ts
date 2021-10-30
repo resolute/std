@@ -142,7 +142,7 @@ export const debounce = <T extends (...args: any[]) => any>(fn: T, threshold?: n
     timeout = setTimeout(() => {
       timeout = 0;
       fn(...args);
-    }, threshold);
+    }, threshold) as unknown as number;
   }) as T;
 };
 
@@ -179,7 +179,7 @@ export const throttle = (limit: number, interval: number) => {
         resolve(fn(...args));
         queue.delete(timeout);
       };
-      const timeout = setTimeout(execute, getDelay());
+      const timeout = setTimeout(execute, getDelay()) as unknown as number;
       queue.set(timeout, reject);
       return promise;
     };

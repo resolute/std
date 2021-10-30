@@ -626,70 +626,70 @@ export interface Coercer<I, O> {
 export interface Coerce {
   (): <I>(value: I) => I;
   <A, B>(
-    ab: <A1>(a: A) => B,
+    ab: (a: A) => B,
   ): Coercer<A, B>;
   <A, B, C>(
-    ab: <A1>(a: A) => B,
-    bc: <B1>(b: B) => C,
+    ab: (a: A) => B,
+    bc: (b: B) => C,
   ): Coercer<A, C>;
   <A, B, C, D>(
-    ab: <A1>(a: A) => B,
-    bc: <B1>(b: B) => C,
-    cd: <C1>(c: C) => D,
+    ab: (a: A) => B,
+    bc: (b: B) => C,
+    cd: (c: C) => D,
   ): Coercer<A, D>;
   <A, B, C, D, E>(
-    ab: <A1>(a: A) => B,
-    bc: <B1>(b: B) => C,
-    cd: <C1>(c: C) => D,
-    de: <D1>(d: D) => E,
+    ab: (a: A) => B,
+    bc: (b: B) => C,
+    cd: (c: C) => D,
+    de: (d: D) => E,
   ): Coercer<A, E>;
   <A, B, C, D, E, F>(
-    ab: <A1>(a: A) => B,
-    bc: <B1>(b: B) => C,
-    cd: <C1>(c: C) => D,
-    de: <D1>(d: D) => E,
-    ef: <E1>(e: E) => F,
+    ab: (a: A) => B,
+    bc: (b: B) => C,
+    cd: (c: C) => D,
+    de: (d: D) => E,
+    ef: (e: E) => F,
   ): Coercer<A, F>;
   <A, B, C, D, E, F, G>(
-    ab: <A1>(a: A) => B,
-    bc: <B1>(b: B) => C,
-    cd: <C1>(c: C) => D,
-    de: <D1>(d: D) => E,
-    ef: <E1>(e: E) => F,
-    fg: <F1>(f: F) => G,
+    ab: (a: A) => B,
+    bc: (b: B) => C,
+    cd: (c: C) => D,
+    de: (d: D) => E,
+    ef: (e: E) => F,
+    fg: (f: F) => G,
   ): Coercer<A, G>;
   <A, B, C, D, E, F, G, H>(
-    ab: <A1>(a: A) => B,
-    bc: <B1>(b: B) => C,
-    cd: <C1>(c: C) => D,
-    de: <D1>(d: D) => E,
-    ef: <E1>(e: E) => F,
-    fg: <F1>(f: F) => G,
-    gh: <G1>(g: G) => H,
+    ab: (a: A) => B,
+    bc: (b: B) => C,
+    cd: (c: C) => D,
+    de: (d: D) => E,
+    ef: (e: E) => F,
+    fg: (f: F) => G,
+    gh: (g: G) => H,
   ): Coercer<A, H>;
   <A, B, C, D, E, F, G, H, I>(
-    ab: <A1>(a: A) => B,
-    bc: <B1>(b: B) => C,
-    cd: <C1>(c: C) => D,
-    de: <D1>(d: D) => E,
-    ef: <E1>(e: E) => F,
-    fg: <F1>(f: F) => G,
-    gh: <G1>(g: G) => H,
-    hi: <H1>(h: H) => I,
+    ab: (a: A) => B,
+    bc: (b: B) => C,
+    cd: (c: C) => D,
+    de: (d: D) => E,
+    ef: (e: E) => F,
+    fg: (f: F) => G,
+    gh: (g: G) => H,
+    hi: (h: H) => I,
   ): Coercer<A, I>;
   <A, B, C, D, E, F, G, H, I, J>(
-    ab: <A1>(a: A) => B,
-    bc: <B1>(b: B) => C,
-    cd: <C1>(c: C) => D,
-    de: <D1>(d: D) => E,
-    ef: <E1>(e: E) => F,
-    fg: <F1>(f: F) => G,
-    gh: <G1>(g: G) => H,
-    hi: <H1>(h: H) => I,
-    ij: <I1>(i: I) => J,
+    ab: (a: A) => B,
+    bc: (b: B) => C,
+    cd: (c: C) => D,
+    de: (d: D) => E,
+    ef: (e: E) => F,
+    fg: (f: F) => G,
+    gh: (g: G) => H,
+    hi: (h: H) => I,
+    ij: (i: I) => J,
   ): Coercer<A, J>;
   <A, Z>(
-    ...az: (<A1>(a: A) => Z)[]
+    ...az: ((a: A) => Z)[]
   ): Coercer<A, Z>;
 }
 //#endregion
