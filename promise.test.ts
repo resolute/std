@@ -49,8 +49,8 @@ Deno.test('keeper + interval', async () => {
   assertStrictEquals(await kept.get(), 1);
   kept.start(100);
   await sleep(350);
-  assertStrictEquals(kept.stale() >= 4, true);
+  assertStrictEquals(kept.stale() >= 3, true);
   kept.stop();
   await sleep(100);
-  assertStrictEquals(kept.stale() >= 4, true);
+  assertStrictEquals(kept.stale() >= 3, true);
 });

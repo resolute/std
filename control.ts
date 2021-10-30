@@ -119,3 +119,77 @@ export const retry = <P extends unknown[], R>(
   };
   return retry;
 };
+
+/**
+ * Returns a function, that, as long as it continues to be invoked (.), will not
+ * be triggered (*). The function will be called after it stops being called for
+ * `threshold` milliseconds.
+ *
+ *       /-- 10s --\ /-- 10s --\ /-- 10s --\
+ *     (*). . . . . . . . . . . .           *
+ *
+ * @param   fn          Function to be throttled
+ * @param   threshold   Milliseconds fn will be throttled
+ * @return  Debounced wrapped `fn`
+ */
+// deno-lint-ignore no-explicit-any
+export const debounce = <T extends (...args: any[]) => any>(fn: T, threshold?: number) => {
+  let timeout = 0;
+  return ((...args: Parameters<T>) => {
+    if (timeout) {
+      clearTimeout(timeout);
+    }
+    timeout = setTimeout(() => {
+      timeout = 0;
+      fn(...args);
+    }, threshold);
+  }) as T;
+};
+
+/**
+ * Limit the number of invocations of a given function (or different functions)
+ * within an interval window. Useful for avoiding API rate limits.
+ * @param limit invocations within given interval
+ * @param interval milliseconds
+ * @returns wrapped throttled function
+ */
+export const throttle = (limit: number, interval: number) => {
+  const queue = new Map<number, (reason?: unknown) => void>();
+  let currentTick = 0;
+  let activeCount = 0;
+  const getDelay = () => {
+    const now = Date.now();
+    if ((now - currentTick) > interval) {
+      activeCount = 1;
+      currentTick = now;
+      return 0;
+    }
+    if (activeCount < limit) {
+      activeCount++;
+    } else {
+      currentTick += interval;
+      activeCount = 1;
+    }
+    return currentTick - now;
+  };
+  return <T extends (...args: P[]) => Promise<R>, P, R>(fn: T) => {
+    const throttled = (...args: P[]) => {
+      const [promise, resolve, reject] = defer<R>();
+      const execute = () => {
+        resolve(fn(...args));
+        queue.delete(timeout);
+      };
+      const timeout = setTimeout(execute, getDelay());
+      queue.set(timeout, reject);
+      return promise;
+    };
+    throttled.abort = (error: Error) => {
+      for (const [timeout, reject] of queue.entries()) {
+        clearTimeout(timeout);
+        reject(error);
+      }
+      queue.clear();
+    };
+    return throttled;
+  };
+};

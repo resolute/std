@@ -11,12 +11,16 @@ import {
   date,
   defined,
   email,
+  func,
   instance,
   integer,
+  iterable,
   length,
   limit,
+  luhn,
   negative,
   nonempty,
+  nonstring,
   nonzero,
   number,
   object,
@@ -38,6 +42,7 @@ import {
 Deno.test('string', () => {
   strict(coerce(string)('1'), '1');
   strict(coerce(string)(1), '1');
+  strict(coerce(string)(1n), '1');
   throws(() => coerce(string)(true as unknown as string));
   throws(() => coerce(string)(Symbol(1) as unknown as string));
   throws(() => coerce(string)(new Error('foo') as unknown as string));
@@ -48,19 +53,24 @@ Deno.test('string', () => {
   throws(() => coerce(string)(undefined as unknown as string));
   throws(() => coerce(string)({} as unknown as string));
   throws(() =>
-    coerce(string)(
-      (function toString() {
+    coerce(string)({
+      toString() {
         return '1';
-      }) as unknown as string,
-    )
+      },
+    } as unknown as string)
   );
   throws(() =>
-    coerce(string)(
-      (function noToStringMethod() {
+    coerce(string)({
+      noToStringMethod() {
         return '1';
-      }) as unknown as string,
-    )
+      },
+    } as unknown as string)
   );
+});
+
+Deno.test('nonstring', () => {
+  strict(coerce(nonstring)(1), 1);
+  throws(() => coerce(nonstring)('foo'));
 });
 
 Deno.test('trim', () => {
@@ -105,16 +115,23 @@ Deno.test('defined', () => {
 
 Deno.test('boolean', () => {
   strict(coerce(boolean())(undefined), false);
+  strict(coerce(boolean())(' null'), false);
   strict(coerce(boolean())(null), false);
-  strict(coerce(boolean())(''), false);
+  strict(coerce(boolean())(' '), false);
   strict(coerce(boolean())(false), false);
   strict(coerce(boolean())('false'), false);
+  strict(coerce(boolean())(NaN), false);
   strict(coerce(boolean())('0'), false);
   strict(coerce(boolean())(0), false);
   strict(coerce(boolean())({}), true);
   strict(coerce(boolean())(new Error()), true);
   strict(coerce(boolean())(1), true);
   strict(coerce(boolean())('foo'), true);
+});
+
+Deno.test('iterable', () => {
+  equals(coerce(iterable)(new Set([1, 2, 3])), new Set([1, 2, 3]));
+  throws(() => coerce(iterable)(new WeakSet() as unknown as Set<number>));
 });
 
 Deno.test('array', () => {
@@ -127,8 +144,9 @@ Deno.test('array', () => {
   equals(coerce(array)(new Uint8Array('123'.split('').map((s) => s.charCodeAt(0)))), [49, 50, 51]);
   equals(coerce(array)(true), [true]);
   equals(coerce(array)(undefined), [undefined]);
-  // WeakSet non-iterable, so it gets wrapped in array, but we can’t compare with Deno
-  // equals(coerce(array)(new WeakSet()), [new WeakSet()]);
+  // WeakSet non-iterable, so it gets wrapped in array
+  const weakSet = new WeakSet();
+  equals(coerce(array)(weakSet), [weakSet]);
 });
 
 Deno.test('number', () => {
@@ -158,6 +176,12 @@ Deno.test('number', () => {
 Deno.test('object', () => {
   equals(coerce(object)({ is: 'object' }), { is: 'object' });
   throws(() => coerce(object)('not an object'));
+});
+
+Deno.test('func', () => {
+  const fn = () => {};
+  strict(coerce(func)(fn), fn);
+  throws(() => coerce(func)({}));
 });
 
 Deno.test('instance', () => {
@@ -194,6 +218,11 @@ Deno.test('split', () => {
 Deno.test('within', () => {
   strict(coerce(within(['foo', 'bar']))('foo'), 'foo');
   throws(() => coerce(within(['foo', 'bar']))('baz'));
+});
+
+Deno.test('luhn', () => {
+  strict(coerce(luhn)('49927398716'), '49927398716');
+  throws(() => coerce(luhn)('49927398717'));
 });
 
 Deno.test('email', () => {

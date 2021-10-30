@@ -218,6 +218,50 @@ export const within = <T extends string | number | boolean | object>(list: T[]) 
     throw new TypeError(`“${value}” must be one of ${list}`);
   };
 
+/**
+ * Require the length of the input to be exactly `size`.
+ */
+export const length = (size: number) =>
+  /**
+   * Enforce the length of a  `string` or `array`
+   */
+  <T extends { length: number }>(value: T) => {
+    if (value?.length === size) {
+      return value;
+    }
+    throw new TypeError(`${value} must be of length ${size}.`);
+  };
+
+/**
+ * Luhn check a value
+ * @param value string of digits
+ * @returns boolean
+ */
+export const isLuhn = (value: string) => {
+  // adapted from https://github.com/bendrucker/fast-luhn
+  // eslint-disable-next-line @typescript-eslint/no-shadow
+  let { length } = value;
+  let bit = 1;
+  let sum = 0;
+  while (length) {
+    const int = parseInt(value.charAt(--length), 10);
+    bit ^= 1;
+    sum += bit ? [0, 2, 4, 6, 8, 1, 3, 5, 7, 9][int] : int;
+  }
+  return sum % 10 === 0;
+};
+
+/**
+ * Validate a value against the Luhn algorithm.
+ * @param value string of digits
+ * @returns value if it passes the Luhn algorithm
+ */
+export const luhn = (value: string) => {
+  if (isLuhn(value)) {
+    return value;
+  }
+  throw new TypeError(`${value} failed Luhn test.`);
+};
 //#endregion
 
 //#region Primitives
@@ -230,7 +274,7 @@ export const string = (value: string | number | bigint) => {
   if (isString(value)) {
     return value;
   }
-  if ((isNumber(value) && Number.isFinite(value)) || isBigInt(value)) {
+  if (isNumber(value) || isBigInt(value)) {
     return value.toString();
   }
   throw new TypeError(`Unable to parse “${value}” as a string.`);
@@ -519,6 +563,13 @@ export const postalCodeUs5 = (value: string) => {
  */
 export const integer = (value: number) => Math.round(value);
 
+interface CoerceLimit {
+  (value: number): number;
+  (value: string): string;
+  <T>(value: T[]): T[];
+  <T extends number | string | U[], U>(value: T): T;
+}
+
 /**
  * Limit the value of a `number`, characters in a `string`, or items in an
  * `array`
@@ -528,7 +579,7 @@ export const limit = (max: number) =>
    * Limit the value of a `number`, characters in a `string`, or items in an
    * `array`
    */
-  (value: number | string | unknown[]) => {
+  ((value: unknown) => {
     if (isNumber(value)) {
       return Math.min(value, max);
     }
@@ -539,22 +590,7 @@ export const limit = (max: number) =>
       return value.slice(0, max);
     }
     throw new TypeError(`Unable to apply a max of ${max} to ${value}`);
-  };
-
-/**
- * Require the length of the input to be exactly `size`.
- */
-export const length = (size: number) =>
-  /**
-   * Limit the value of a `number`, characters in a `string`, or items in an
-   * `array`
-   */
-  <T extends { length: number }>(value: T) => {
-    if (value?.length === size) {
-      return value;
-    }
-    throw new TypeError(`${value} must be of length ${size}.`);
-  };
+  }) as CoerceLimit;
 
 /**
  * Split a string into an array. Optionally define a separator RegExp. Default
