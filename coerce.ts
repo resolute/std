@@ -304,7 +304,7 @@ export const number = (value: string | number | bigint): number => {
  */
 export const date = (value: number | string | Date) => {
   const dateObject = new Date(value);
-  nonZero(dateObject.valueOf());
+  nonZero(number(dateObject.valueOf()));
   return dateObject;
 };
 

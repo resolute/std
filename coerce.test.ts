@@ -241,6 +241,8 @@ Deno.test('phone', () => {
 });
 
 Deno.test('date', () => {
+  throws(() => coerce(date)(new Date(0)));
+  throws(() => coerce(date)(undefined!));
   equals(coerce(date)(1628623372929), new Date(1628623372929));
 });
 
