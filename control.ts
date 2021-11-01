@@ -1,4 +1,6 @@
+// deno-lint-ignore-file no-explicit-any
 // @ts-ignore tsc non-sense
+
 import { randomIntInclusive } from './math.ts';
 
 /**
@@ -132,7 +134,6 @@ export const retry = <P extends unknown[], R>(
  * @param   threshold   Milliseconds fn will be throttled
  * @return  Debounced wrapped `fn`
  */
-// deno-lint-ignore no-explicit-any
 export const debounce = <T extends (...args: any[]) => any>(fn: T, threshold?: number) => {
   let timeout = 0;
   return ((...args: Parameters<T>) => {
@@ -172,24 +173,24 @@ export const throttle = (limit: number, interval: number) => {
     }
     return currentTick - now;
   };
-  return <T extends (...args: P[]) => Promise<R>, P, R>(fn: T) => {
-    const throttled = (...args: P[]) => {
-      const [promise, resolve, reject] = defer<R>();
+  return <T extends (...args: any[]) => any>(fn: T) => {
+    const throttled = (...args: any[]) => {
+      const [promise, resolve, reject] = defer<ReturnType<T>>();
       const execute = () => {
         resolve(fn(...args));
         queue.delete(timeout);
       };
       const timeout = setTimeout(execute, getDelay()) as unknown as number;
       queue.set(timeout, reject);
-      return promise;
+      return promise as ReturnType<T>;
     };
-    throttled.abort = (error: Error) => {
+    (throttled as T & { abort: (error: Error) => void }).abort = (error: Error) => {
       for (const [timeout, reject] of queue.entries()) {
         clearTimeout(timeout);
         reject(error);
       }
       queue.clear();
     };
-    return throttled;
+    return throttled as T & { abort: (error: Error) => void };
   };
 };

@@ -194,6 +194,7 @@ Deno.test('instance', () => {
     coerce(instance({ foo: 'bar' } as unknown as new () => Record<string, never>))(new Date(4))
   );
 });
+
 Deno.test('limit', () => {
   equals(coerce(limit(3))(5), 3);
   strict(coerce(limit(3))('foobar'), 'foo');

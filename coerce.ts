@@ -618,14 +618,17 @@ export const split = (separator = /[,\r\n\s]+/g) =>
 // -----------------------------------------------------------------------------
 
 export interface Coercer<I, O> {
-  // deno-lint-ignore ban-types
-  <E>(value: I, otherwise: E): O | Exclude<E, Error | Function>;
-  (value: I): O;
+  <Input, E>(
+    value: Input,
+    otherwise: E,
+    // deno-lint-ignore ban-types
+  ): (Input extends I ? (Input extends O ? Input : O) : never) | Exclude<E, Error | Function>;
+  <Input>(value: Input): Input extends I ? (Input extends O ? Input : O) : never;
 }
 
 export interface Coerce {
   (): <I>(value: I) => I;
-  <A extends (...args: any[]) => any, B extends (value: ReturnType<A>) => any>(
+  <A extends (...args: any[]) => any>(
     a: A,
   ): Coercer<Parameters<A>[0], ReturnType<A>>;
   <A extends (...args: any[]) => any, B extends (value: ReturnType<A>) => any>(
