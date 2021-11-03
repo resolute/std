@@ -1,9 +1,5 @@
-import {
-  assert,
-  assertEquals as equals,
-  assertStrictEquals as strict,
-  assertThrows as throws,
-} from 'https://deno.land/std@0.112.0/testing/asserts.ts';
+import { assert, equals, strict, throws } from './deps.test.ts';
+
 import {
   array,
   boolean,
@@ -170,6 +166,7 @@ Deno.test('number', () => {
   strict(coerce(number, negative)('-2.345'), -2.345);
   strict(coerce(nonzero, integer)(1.2), 1);
   throws(() => coerce(nonzero, integer)(0));
+  throws(() => coerce(nonzero)(-0));
   throws(() => coerce(number, nonzero)(''));
 });
 
@@ -196,11 +193,11 @@ Deno.test('instance', () => {
 });
 
 Deno.test('limit', () => {
-  equals(coerce(limit(3))(5), 3);
+  equals(coerce(limit(4))(5), 4);
   strict(coerce(limit(3))('foobar'), 'foo');
-  equals(coerce(limit(3))([1, 2, 3, 4, 5]), [1, 2, 3]);
-  throws(() => coerce(limit(3))({} as number));
-  throws(() => coerce(limit(3))(null as unknown as number));
+  equals(coerce(limit(2))([1, 2, 3, 4, 5]), [1, 2]);
+  throws(() => coerce(limit(1))({} as number));
+  throws(() => coerce(limit(0))(null as unknown as number));
 });
 
 Deno.test('length', () => {

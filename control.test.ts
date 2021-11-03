@@ -1,18 +1,14 @@
-import {
-  assert,
-  assertStrictEquals,
-  assertThrowsAsync,
-} from 'https://deno.land/std@0.112.0/testing/asserts.ts';
+import { assert, equals, throwsAsync } from './deps.test.ts';
 
 import { debounce, once, retry, sleep, throttle } from './control.ts';
 
 Deno.test('once', () => {
   let value = 0;
-  const incr = () => ++value;
-  assertStrictEquals(once(incr)(), 1);
-  assertStrictEquals(once(incr)(), 1);
-  assertStrictEquals(incr(), 2);
-  assertStrictEquals(once(incr)(), 1);
+  const incr = (by = 1) => value += by;
+  equals(once(incr)(5), 5);
+  equals(once(incr)(1), 5); // not 6
+  equals(incr(), 6); // oh, sure, without once(), ok 6
+  equals(once(incr)(), 5); // not 6
 });
 
 const fauxFail = (passOnRun = 3) => {
@@ -27,16 +23,16 @@ const fauxFail = (passOnRun = 3) => {
 };
 
 Deno.test('retry:pass', async () => {
-  assertStrictEquals(await retry(fauxFail(3))('foo'), 'foo');
+  equals(await retry(fauxFail(3))('foo'), 'foo');
 });
 
 Deno.test('retry:fail', async () => {
-  await assertThrowsAsync(() => retry(fauxFail(4))('foo'));
+  await throwsAsync(() => retry(fauxFail(4))('foo'));
 });
 
 Deno.test('sleep', async () => {
   assert(
-    await sleep(50, (then) => Date.now() - then, Date.now()) >= 50,
+    await sleep(50, (then: number) => Date.now() - then, Date.now()) >= 50,
   );
 });
 
@@ -50,7 +46,7 @@ Deno.test('debounce', async () => {
   await sleep(10);
   debounced(1);
   await sleep(50);
-  assertStrictEquals(state, 1);
+  equals(state, 1);
 });
 
 Deno.test('throttle', async () => {
@@ -74,6 +70,6 @@ Deno.test('throttle.abort', async () => {
   await throttled();
   const promise = throttled();
   throttled.abort(new Error('Had to bail!'));
-  await assertThrowsAsync(() => promise, Error, 'Had to bail!');
+  await throwsAsync(() => promise, Error, 'Had to bail!');
   assert(Date.now() - start < 100);
 });

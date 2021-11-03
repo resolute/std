@@ -15,13 +15,20 @@ const failure = <U>(error: Error, otherwise: U) => {
   if (isInstance(Error)(otherwise)) {
     throw otherwise;
   }
-  return otherwise;
+  // deno-lint-ignore ban-types
+  return otherwise as Exclude<U, Error | Function>;
 };
 
 /**
- * Pipe the input through coerce functions
+ * Create a pipe of unary functions
  */
-const pipe = <V, C extends (value: unknown) => unknown>(value: V, coercer: C) => coercer(value);
+// TODO(@adamchal): this is not really a Coerce. It should be a Pipe, which is
+// the same as Coerce except for the second overload of CoerceResult. Avoided
+// duplicating the Coerce interface for now, but if this is to be exported
+// later, the Coerce interface will need to be duplicated and the return types
+// would be PipeResult<…> instead of CoerceResult<…>.
+const pipe: Coerce = (...fns: ((value: unknown) => unknown)[]) =>
+  fns.reduce.bind(fns, (value, fn) => fn(value)) as (value: any) => any;
 
 /**
  * Handles issues where passing otherwise: undefined triggers the default
@@ -30,11 +37,12 @@ const pipe = <V, C extends (value: unknown) => unknown>(value: V, coercer: C) =>
  * This is instead of simply using a default parameter value, which would not
  * work in the case where undefined is passed.
  */
-const params = (args: unknown[]) => {
+const params = <T, E>(args: [T] | [T, E]) => {
   if (args.length === 1) {
-    return [args[0] as unknown, TypeError] as const;
+    return [args[0] as T, TypeError] as const;
   }
-  return args;
+  // deno-lint-ignore ban-types
+  return args as [T, Exclude<E, Error | Function>];
 };
 
 /**
@@ -42,20 +50,20 @@ const params = (args: unknown[]) => {
  * `coerce(...coercers)(value[, backup])`
  * @example
  * ```js
- * coerce(string, trim, nonEmpty)(' foo '); // 'foo'
- * coerce(string, trim, nonEmpty)('     '); // TypeError
- * coerce(string, trim, nonEmpty)('     ', undefined); // undefined
+ * coerce(string, trim, nonempty)(' foo '); // 'foo'
+ * coerce(string, trim, nonempty)(' '); // TypeError
+ * coerce(string, trim, nonempty)(' ', undefined); // undefined
  * ```
  */
 export const coerce: Coerce = <A, Z>(...coercers: ((a: A) => Z)[]): Coercer<A, Z> =>
-  ((...args: unknown[]) => {
+  <T, E>(...args: [T] | [T, E]) => {
     const [value, otherwise] = params(args);
     try {
-      return (coercers as ((...args: unknown[]) => unknown)[]).reduce(pipe, value);
+      return pipe(...coercers)(value);
     } catch (error) {
       return failure(error as Error, otherwise);
     }
-  }) as Coercer<A, Z>;
+  };
 //#endregion
 
 //#region Type Guards
@@ -617,26 +625,29 @@ export const split = (separator = /[,\r\n\s]+/g) =>
 //#region Types
 // -----------------------------------------------------------------------------
 
-export interface Coercer<I, O> {
+export interface PipeResult<I, O> {
+  <Input>(value: Input): Input extends I ? (Input extends O ? Input : O) : never;
+}
+
+export interface Coercer<I, O> extends PipeResult<I, O> {
   <Input, E>(
     value: Input,
     otherwise: E,
     // deno-lint-ignore ban-types
   ): (Input extends I ? (Input extends O ? Input : O) : never) | Exclude<E, Error | Function>;
-  <Input>(value: Input): Input extends I ? (Input extends O ? Input : O) : never;
 }
 
 export interface Coerce {
   (): <I>(value: I) => I;
-  <A extends (...args: any[]) => any>(
+  <A extends (value: any) => any>(
     a: A,
   ): Coercer<Parameters<A>[0], ReturnType<A>>;
-  <A extends (...args: any[]) => any, B extends (value: ReturnType<A>) => any>(
+  <A extends (value: any) => any, B extends (value: ReturnType<A>) => any>(
     a: A,
     b: B,
   ): Coercer<Parameters<A>[0], ReturnType<B>>;
   <
-    A extends (...args: any[]) => any,
+    A extends (value: any) => any,
     B extends (value: ReturnType<A>) => any,
     C extends (value: ReturnType<B>) => any,
   >(
@@ -645,7 +656,7 @@ export interface Coerce {
     c: C,
   ): Coercer<Parameters<A>[0], ReturnType<C>>;
   <
-    A extends (...args: any[]) => any,
+    A extends (value: any) => any,
     B extends (value: ReturnType<A>) => any,
     C extends (value: ReturnType<B>) => any,
     D extends (value: ReturnType<C>) => any,
@@ -656,7 +667,7 @@ export interface Coerce {
     d: D,
   ): Coercer<Parameters<A>[0], ReturnType<D>>;
   <
-    A extends (...args: any[]) => any,
+    A extends (value: any) => any,
     B extends (value: ReturnType<A>) => any,
     C extends (value: ReturnType<B>) => any,
     D extends (value: ReturnType<C>) => any,
@@ -669,7 +680,7 @@ export interface Coerce {
     e: E,
   ): Coercer<Parameters<A>[0], ReturnType<E>>;
   <
-    A extends (...args: any[]) => any,
+    A extends (value: any) => any,
     B extends (value: ReturnType<A>) => any,
     C extends (value: ReturnType<B>) => any,
     D extends (value: ReturnType<C>) => any,
@@ -684,7 +695,7 @@ export interface Coerce {
     f: F,
   ): Coercer<Parameters<A>[0], ReturnType<F>>;
   <
-    A extends (...args: any[]) => any,
+    A extends (value: any) => any,
     B extends (value: ReturnType<A>) => any,
     C extends (value: ReturnType<B>) => any,
     D extends (value: ReturnType<C>) => any,
@@ -701,7 +712,7 @@ export interface Coerce {
     g: G,
   ): Coercer<Parameters<A>[0], ReturnType<G>>;
   <
-    A extends (...args: any[]) => any,
+    A extends (value: any) => any,
     B extends (value: ReturnType<A>) => any,
     C extends (value: ReturnType<B>) => any,
     D extends (value: ReturnType<C>) => any,
@@ -719,7 +730,7 @@ export interface Coerce {
     g: G,
     h: H,
   ): Coercer<Parameters<A>[0], ReturnType<H>>;
-  <AZ extends (...args: any[]) => any>(
+  <AZ extends (value: any) => any>(
     ...az: AZ[]
   ): Coercer<Parameters<AZ>[0], ReturnType<AZ>>;
 }

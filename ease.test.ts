@@ -1,4 +1,5 @@
-import { assertStrictEquals } from 'https://deno.land/std@0.112.0/testing/asserts.ts';
+import { strict } from './deps.test.ts';
+
 import {
   easeInBack,
   easeInBounce,
@@ -76,7 +77,7 @@ Deno.test('ease', () => {
       0.9,
       1,
     ].forEach((progress) => {
-      assertStrictEquals(Number.isFinite(ease(progress)), true);
+      strict(Number.isFinite(ease(progress)), true);
     });
   });
 });

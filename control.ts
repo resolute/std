@@ -17,7 +17,7 @@ export const defer = <T>() => {
   return [promise, resolve, reject] as const;
 };
 
-const onceCache = new WeakMap<(...args: unknown[]) => unknown, unknown>();
+const onceCache = new WeakMap<(...args: any[]) => any, any>();
 
 /**
  * Wrap a function that to be executed once. Subsequent calls will return the
@@ -33,14 +33,14 @@ const onceCache = new WeakMap<(...args: unknown[]) => unknown, unknown>();
  * once(incr)(); // 1
  * ```
  */
-export const once = <T extends (...args: unknown[]) => void>(fn: T) =>
-  (...args: Parameters<T>) => {
+export const once = <T extends (...args: any[]) => any>(fn: T) =>
+  ((...args: Parameters<T>) => {
     if (!onceCache.has(fn)) {
       const result = fn(...args);
       onceCache.set(fn, result);
     }
-    return onceCache.get(fn) as ReturnType<T>;
-  };
+    return onceCache.get(fn);
+  }) as T;
 
 /**
  * Promisify `setTimeout`. Returns a Promise that settles with the return of the
@@ -50,12 +50,12 @@ export const once = <T extends (...args: unknown[]) => void>(fn: T) =>
  * @param fn async or Promise-returning delayed function.
  * @param args optional params to be passed to delayed function.
  */
-export const sleep = <P extends unknown[], R>(
+export const sleep = <T extends (...args: any[]) => any>(
   delay = 0,
-  fn = ((() => {}) as (...args: P) => R),
-  ...args: P
+  fn = ((() => {}) as T),
+  ...args: Parameters<T>
 ) => {
-  const [promise, resolve] = defer<R>();
+  const [promise, resolve] = defer<ReturnType<T>>();
   setTimeout(() => resolve(fn(...args)), delay);
   return promise;
 };
@@ -103,13 +103,13 @@ const retryDefaults = { retries: 3, delay, retryOn };
  * @param options.retryOn function called after each failure. Default: throw if
  * attempt + 1 > retries
  */
-export const retry = <P extends unknown[], R>(
-  fn: (...args: P) => Promise<R>,
+export const retry = <T extends (...args: any[]) => Promise<any>>(
+  fn: T,
   options: Partial<typeof retryDefaults> = {},
 ) => {
   const { retries, delay, retryOn } = { ...retryDefaults, ...options };
   let attempt = 0;
-  const retry = async (...args: P): Promise<R> => {
+  const retry = (async (...args: Parameters<T>) => {
     try {
       attempt += 1;
       const result = await fn(...args);
@@ -118,7 +118,7 @@ export const retry = <P extends unknown[], R>(
       await retryOn(error as Error, attempt, retries);
       return sleep(delay(attempt), retry, ...args);
     }
-  };
+  }) as T;
   return retry;
 };
 

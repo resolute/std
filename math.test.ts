@@ -1,23 +1,31 @@
-import { assertEquals, assertStrictEquals } from 'https://deno.land/std@0.112.0/testing/asserts.ts';
+import { equals, strict } from './deps.test.ts';
 
-import { divide, randomIntExclusiveMax, range, scale } from './math.ts';
+import { clamp, clamp01, divide, randomIntExclusiveMax, range, scale } from './math.ts';
+
+Deno.test('clamp', () => {
+  strict(clamp01(1.01), 1);
+  strict(clamp01(-0), 0);
+  strict(clamp()(-0.01), 0);
+  strict(clamp(5, 10)(-1), 5);
+  strict(clamp(5, 10)(11), 10);
+});
 
 Deno.test('range', () => {
   const ranger = range(0, 10);
-  assertStrictEquals(ranger(0.5), 5);
-  assertStrictEquals(ranger(1.5), 15);
-  assertStrictEquals(ranger(-0.5), -5);
+  strict(ranger(0.5), 5);
+  strict(ranger(1.5), 15);
+  strict(ranger(-0.5), -5);
 });
 
 Deno.test('scale', () => {
   const scaler = scale(0, 10);
-  assertStrictEquals(scaler(5), 0.5);
-  assertStrictEquals(scaler(15), 1.5);
-  assertStrictEquals(scaler(-5), -0.5);
+  strict(scaler(5), 0.5);
+  strict(scaler(15), 1.5);
+  strict(scaler(-5), -0.5);
 });
 
 Deno.test('divide', () => {
-  assertEquals(
+  equals(
     [1, 2, 3]
       .map(divide())
       .map(([, scaler]) => [
@@ -36,7 +44,7 @@ Deno.test('divide', () => {
 
 Deno.test('randomIntExclusiveMax', () => {
   const alwaysMin = randomIntExclusiveMax(0, 1);
-  assertStrictEquals(alwaysMin, 0);
+  strict(alwaysMin, 0);
   const value = randomIntExclusiveMax(0, 2);
-  assertStrictEquals(value === 0 || value === 1, true);
+  strict(value === 0 || value === 1, true);
 });

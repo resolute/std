@@ -128,9 +128,9 @@
   },
   "scripts": {
     "build": "./bin/build.sh",
-    "release": "np",
+    "release": "npx np",
     "prepublishOnly": "npm test && npm run build",
-    "clean": "del-cli *.js *.cjs *.mjs *.js.map *.d.ts dom/*.js dom/*.cjs dom/*.mjs dom/*.js.map dom/*.d.ts",
+    "clean": "./bin/clean.sh",
     "test": "./bin/test.sh"
   },
   "repository": {
@@ -144,11 +144,6 @@
   "author": "Adam Chalemian <adam@chal.net>",
   "engines": {
     "node": ">=14.0.0"
-  },
-  "devDependencies": {
-    "del-cli": "^4.0.1",
-    "np": "^7.5.0",
-    "typescript": "^4.4.3"
   },
   "keywords": [
     "std",

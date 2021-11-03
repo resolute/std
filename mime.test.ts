@@ -1,15 +1,15 @@
-import { assertStrictEquals, assertThrows } from 'https://deno.land/std@0.112.0/testing/asserts.ts';
+import { strict, throws } from './deps.test.ts';
 
 import { extToMime, mimeToExt } from './mime.ts';
 
 Deno.test('mimeToExt', () => {
-  assertStrictEquals(mimeToExt('image/avif'), 'avif');
-  assertStrictEquals(mimeToExt('text/html; charset=utf-8'), 'html');
-  assertThrows(() => mimeToExt('foo/bar'));
+  strict(mimeToExt('image/avif'), 'avif');
+  strict(mimeToExt('text/html; charset=utf-8'), 'html');
+  throws(() => mimeToExt('foo/bar'));
 });
 
 Deno.test('extToMime', () => {
-  assertStrictEquals(extToMime('avif'), 'image/avif');
-  assertStrictEquals(extToMime('.avif'), 'image/avif');
-  assertThrows(() => extToMime('foo'));
+  strict(extToMime('avif'), 'image/avif');
+  strict(extToMime('.avif'), 'image/avif');
+  throws(() => extToMime('foo'));
 });

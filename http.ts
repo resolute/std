@@ -24,7 +24,9 @@ export class HttpError extends Error {
     super(message);
     this.status = status;
     this.name = 'HttpError';
+    // @ts-ignore tsc barks at Error.captureStackTrace, but this is safe
     if (Error.captureStackTrace) {
+      // @ts-ignore tsc barks at Error.captureStackTrace, but this is safe
       Error.captureStackTrace(this, this.constructor);
     }
   }
@@ -142,6 +144,15 @@ export const readBody = async (input: Request | Response) => {
     default:
       return input.arrayBuffer();
   }
+};
+
+/**
+ * Cancel the body. Typically used when you are finished with or don’t care
+ * about a fetch response.
+ */
+export const cancelBody = <T extends Body>(input: T) => {
+  input.body?.cancel();
+  return input;
 };
 
 /**

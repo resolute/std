@@ -23,7 +23,8 @@ export const cleanPhone = coerce(string, prettyPhone);
  * Type guard against any tuples containing `undefined` or `null`.
  */
 export type MapNonNullable<T> = { [K in keyof T]: NonNullable<T[K]> };
-export const isDefinedTuple = <T extends readonly unknown[]>(
+// deno-lint-ignore no-explicit-any
+export const isDefinedTuple = <T extends readonly any[]>(
   tuple: T,
 ): tuple is MapNonNullable<T> => tuple.every(isDefined);
 

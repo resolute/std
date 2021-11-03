@@ -34,6 +34,7 @@
     "editor.formatOnSave": true
   },
   "cSpell.words": [
+    "adamchal",
     "arrayify",
     "chainable",
     "codecov",
@@ -50,5 +51,8 @@
     "O’Xx",
     "promisifying",
     "ucfirst"
-  ]
+  ],
+  "deno.suggest.imports.hosts": {
+    "https://deno.land": true
+  }
 }
