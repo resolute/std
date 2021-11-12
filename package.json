@@ -1,6 +1,6 @@
 {
   "name": "@resolute/std",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "description": "Standard TypeScript Development",
   "type": "module",
   "files": [
