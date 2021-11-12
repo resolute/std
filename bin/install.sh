@@ -24,8 +24,8 @@ command -v genhtml >/dev/null 2>&1 || {
   fi
 }
 
-# tsc
-command -v tsc >/dev/null 2>&1 || {
-  echo >&2 "tsc not installed.";
-  echo >&2 "npm i -g typescript"
+# esbuild
+command -v esbuild >/dev/null 2>&1 || {
+  echo >&2 "esbuild not installed.";
+  echo >&2 "npm i -g esbuild"
 }

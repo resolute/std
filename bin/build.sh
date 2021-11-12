@@ -1,25 +1,23 @@
-#!/usr/bin/env sh
+#!/usr/bin/env bash
 
-ts2js() {
-  for file in *.js dom/*.js; do
-    sed -i.bak 's/\.ts/.js/' "$file"
-    rm -f "$file.bak"
-    sed -i.bak 's/\/\/ @ts-ignore tsc non-sense//' "$file"
-    rm -f "$file.bak"
-    deno fmt --config deno.json "$file" 2>/dev/null
-  done
+SCRIPT_DIR="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+PROJECT_DIR="$( dirname -- "${SCRIPT_DIR}" )";
+
+process() {
+  TS="$1"
+  if [[ "$TS" == *".test.ts" ]]; then
+    return 0
+  fi
+  CJS=${TS%.ts}.cjs
+  MJS=${TS%.ts}.js
+  echo $CJS
+  sed 's/\.ts//' "$TS" | esbuild --loader=ts --format=cjs --target=node16 > "$CJS"
+  echo $MJS
+  sed 's/\.ts//' "$TS" | esbuild --loader=ts --format=esm --target=esnext > "$MJS"
 }
 
-rename() {
-  for file in *.js dom/*.js; do
-    mv "$file" "${file%.js}.$1"
-  done
-}
+export -f process
 
-npm run clean && \
-npx tsc --project tsconfig.build.json -m commonjs && \
-ts2js "$file" && \
-rename cjs && \
-npx tsc --project tsconfig.build.json && \
-ts2js "$file" && \
-echo Build Completed.
+find "$PROJECT_DIR" -name '*.ts' -print0 | xargs -n 1 -P 10 -0 -I{} bash -c 'process "$@"' _ {}
+
+deno fmt --config deno.json . 2>/dev/null

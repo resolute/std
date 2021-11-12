@@ -7,131 +7,130 @@
     "**/*.ts",
     "!**/*.test.ts",
     "**/*.cjs",
-    "**/*.js",
-    "**/*.d.ts"
+    "**/*.js"
   ],
   "exports": {
     "./coerce": {
       "import": "./coerce.js",
       "require": "./coerce.cjs",
       "default": "./coerce.js",
-      "types": "./coerce.d.ts"
+      "types": "./coerce.ts"
     },
     "./color": {
       "import": "./color.js",
       "require": "./color.cjs",
       "default": "./color.js",
-      "types": "./color.d.ts"
+      "types": "./color.ts"
     },
     "./control": {
       "import": "./control.js",
       "require": "./control.cjs",
       "default": "./control.js",
-      "types": "./control.d.ts"
+      "types": "./control.ts"
     },
     "./cookie": {
       "import": "./cookie.js",
       "require": "./cookie.cjs",
       "default": "./cookie.js",
-      "types": "./cookie.d.ts"
+      "types": "./cookie.ts"
     },
     "./ease": {
       "import": "./ease.js",
       "require": "./ease.cjs",
       "default": "./ease.js",
-      "types": "./ease.d.ts"
+      "types": "./ease.ts"
     },
     "./http": {
       "import": "./http.js",
       "require": "./http.cjs",
       "default": "./http.js",
-      "types": "./http.d.ts"
+      "types": "./http.ts"
     },
     "./intl": {
       "import": "./intl.js",
       "require": "./intl.cjs",
       "default": "./intl.js",
-      "types": "./intl.d.ts"
+      "types": "./intl.ts"
     },
     "./math": {
       "import": "./math.js",
       "require": "./math.cjs",
       "default": "./math.js",
-      "types": "./math.d.ts"
+      "types": "./math.ts"
     },
     "./mime": {
       "import": "./mime.js",
       "require": "./mime.cjs",
       "default": "./mime.js",
-      "types": "./mime.d.ts"
+      "types": "./mime.ts"
     },
     "./misc": {
       "import": "./misc.js",
       "require": "./misc.cjs",
       "default": "./misc.js",
-      "types": "./misc.d.ts"
+      "types": "./misc.ts"
     },
     "./dom/bg-color-match": {
       "import": "./dom/bg-color-match.js",
       "require": "./dom/bg-color-match.cjs",
       "default": "./dom/bg-color-match.js",
-      "types": "./dom/bg-color-match.d.ts"
+      "types": "./dom/bg-color-match.ts"
     },
     "./dom/closest-inclusive": {
       "import": "./dom/closest-inclusive.js",
       "require": "./dom/closest-inclusive.cjs",
       "default": "./dom/closest-inclusive.js",
-      "types": "./dom/closest-inclusive.d.ts"
+      "types": "./dom/closest-inclusive.ts"
     },
     "./dom/facade": {
       "import": "./dom/facade.js",
       "require": "./dom/facade.cjs",
       "default": "./dom/facade.js",
-      "types": "./dom/facade.d.ts"
+      "types": "./dom/facade.ts"
     },
     "./dom/form": {
       "import": "./dom/form.js",
       "require": "./dom/form.cjs",
       "default": "./dom/form.js",
-      "types": "./dom/form.d.ts"
+      "types": "./dom/form.ts"
     },
     "./dom/loaded": {
       "import": "./dom/loaded.js",
       "require": "./dom/loaded.cjs",
       "default": "./dom/loaded.js",
-      "types": "./dom/loaded.d.ts"
+      "types": "./dom/loaded.ts"
     },
     "./dom/parallax": {
       "import": "./dom/parallax.js",
       "require": "./dom/parallax.cjs",
       "default": "./dom/parallax.js",
-      "types": "./dom/parallax.d.ts"
+      "types": "./dom/parallax.ts"
     },
     "./dom/script": {
       "import": "./dom/script.js",
       "require": "./dom/script.cjs",
       "default": "./dom/script.js",
-      "types": "./dom/script.d.ts"
+      "types": "./dom/script.ts"
     },
     "./dom/video": {
       "import": "./dom/video.js",
       "require": "./dom/video.cjs",
       "default": "./dom/video.js",
-      "types": "./dom/video.d.ts"
+      "types": "./dom/video.ts"
     },
     "./dom/viewport": {
       "import": "./dom/viewport.js",
       "require": "./dom/viewport.cjs",
       "default": "./dom/viewport.js",
-      "types": "./dom/viewport.d.ts"
+      "types": "./dom/viewport.ts"
     }
   },
   "scripts": {
     "build": "./bin/build.sh",
-    "release": "npx np",
-    "prepublishOnly": "npm test && npm run build",
     "clean": "./bin/clean.sh",
-    "test": "./bin/test.sh"
+    "test": "./bin/test.sh",
+    "prepublishOnly": "npm test && npm run build",
+    "release": "npx np"
   },
   "repository": {
     "type": "git",

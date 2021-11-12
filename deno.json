@@ -16,7 +16,7 @@
   },
   "fmt": {
     "files": {
-      "include": ["*.ts", "dom/*.ts"],
+      "include": ["**/*.ts", "**/*.js", "**/*.cjs"],
       "exclude": ["node_modules"]
     },
     "options": {

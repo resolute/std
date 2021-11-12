@@ -3,5 +3,9 @@
 SCRIPT_DIR="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 PROJECT_DIR="$( dirname -- "${SCRIPT_DIR}" )";
 
-echo >&2 $PROJECT_DIR: removing .js .cjs .mjs .d.ts .js.map
-find "$PROJECT_DIR" -name '*.js' -or -name '*.cjs' -or -name '*.mjs' -or -name '*.d.ts' -or -name '*.js.map' -delete
+# remove coverage/ dir
+rm -rf "$PROJECT_DIR/coverage" &>/dev/null
+
+# remove .js .cjs .mjs .d.ts .js.map
+echo >&2 find \"$PROJECT_DIR\" -name \'*.js\' -or -name \'*.cjs\' -or -name \'*.mjs\' -or -name \'*.d.ts\' -or -name \'*.js.map\' -delete
+find "$PROJECT_DIR" \( -name '*.js' -or -name '*.cjs' -or -name '*.mjs' -or -name '*.d.ts' -or -name '*.js.map' \) -delete
