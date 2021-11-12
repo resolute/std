@@ -159,8 +159,9 @@ export const cancelBody = <T extends Body>(input: T) => {
  * Read/craft an Error from a response.
  */
 export const readResponseError = async (response: Response) => {
-  const data = await response.json().catch(() => ({}));
-  if (data.message) {
+  // deno-lint-ignore no-explicit-any
+  const data = await response.json().catch(() => ({})) as any;
+  if (data && data.message) {
     return new HttpError(data.message, response.status);
   }
   const colon = response.statusText ? `: ${response.statusText}` : '';
