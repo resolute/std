@@ -483,13 +483,25 @@ export const dateify = <T extends number | string | Date>(value: T) =>
  * @param undefy returned when value evaluates undefined (undefined, 'undefined', …)
  * @returns boolean
  */
-export const boolean: CoerceBoolean = (
-  truthy = true,
-  falsy = false,
-  nully = falsy,
-  undefy = falsy,
-) =>
-  (value: unknown) => {
+export const boolean = <Truthy = true, Falsy = false, Nully = Falsy, Undefy = Nully>(
+  // truthy: Truthy = true as any,
+  // falsy: Falsy = false as any,
+  // nully: Nully = falsy as any,
+  // undefy: Undefy = nully as any,
+  ...args:
+    | readonly []
+    | readonly [truthy: Truthy]
+    | readonly [truthy: Truthy, falsy: Falsy]
+    | readonly [truthy: Truthy, falsy: Falsy, nully: Nully]
+    | readonly [truthy: Truthy, falsy: Falsy, nully: Nully, undefy: Undefy]
+) => {
+  // This verbose nastiness handles cases where `undefined` is passed as any of
+  // the truthy, falsy, nully, undefy parameters.
+  const truthy = (args.length < 1 ? true : args[0]) as Truthy;
+  const falsy = (args.length < 2 ? false : args[1]) as Falsy;
+  const nully = (args.length < 3 ? falsy : args[2]) as Nully;
+  const undefy = (args.length < 4 ? nully : args[3]) as Undefy;
+  return (value: unknown) => {
     switch (typeof value) {
       case 'undefined':
         return undefy;
@@ -506,7 +518,7 @@ export const boolean: CoerceBoolean = (
         break;
       case 'number':
         if (value === 0 || !Number.isFinite(value)) {
-          return falsy; // includes NaN
+          return falsy;
         }
         break;
       default:
@@ -517,6 +529,7 @@ export const boolean: CoerceBoolean = (
     }
     return value ? truthy : falsy;
   };
+};
 
 /**
  * `Array` Mutator. Transform any iterable into an array [...value], except for

@@ -138,6 +138,20 @@ Deno.test('boolean', () => {
   strict(coerce(boolean())(new Error()), true);
   strict(coerce(boolean())(1), true);
   strict(coerce(boolean())('foo'), true);
+  const truthy = Symbol('truthy');
+  const falsy = Symbol('falsy');
+  const nully = Symbol('nully');
+  const undefy = Symbol('undefy');
+  strict(coerce(boolean(truthy, falsy, nully, undefy))(true), truthy);
+  strict(coerce(boolean(truthy, falsy, nully, undefy))(false), falsy);
+  strict(coerce(boolean(truthy, falsy, nully, undefy))(null), nully);
+  strict(coerce(boolean(truthy, falsy, nully, undefy))(undefined), undefy);
+  strict(coerce(boolean(undefined))(true), undefined);
+  strict(coerce(boolean(undefined, falsy, nully, undefy))(true), undefined);
+  strict(coerce(boolean(undefined, falsy, nully))(undefined), nully);
+  strict(coerce(boolean(truthy, falsy, nully))(undefined), nully);
+  strict(coerce(boolean(truthy, falsy))(null), falsy);
+  strict(coerce(boolean(truthy, falsy))(undefined), falsy);
 });
 
 Deno.test('iterable', () => {
@@ -277,6 +291,8 @@ Deno.test('date', () => {
   equals(coerce(dateify)(1628623372929), new Date(1628623372929));
   equals(is(future)(new Date(Date.now() + 1)), true);
   equals(is(past)(new Date(Date.now() - 1)), true);
+  throws(() => coerce(future)(new Date(Date.now() - 1)));
+  throws(() => coerce(past)(new Date(Date.now() + 1)));
 });
 
 // a default/backup value
