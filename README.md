@@ -33,9 +33,9 @@ Type validation and sanitization.
 Coerce input to types and formats with sanitizers and validators.
 
 ```js
-coerce(string, trim, nonempty)(' foo '); // 'foo'
-coerce(string, trim, nonempty)(' '); // TypeError
-coerce(string, trim, nonempty)(' ', undefined); // undefined
+to(string, trim, not(length(0)))(' foo '); // 'foo'
+to(string, trim, not(length(0)))(' '); // TypeError
+to(string, trim, not(length(0)))(' ', undefined); // undefined
 ```
 
 ## [`./color`](https://github.com/resolute/std/blob/master/color.ts)

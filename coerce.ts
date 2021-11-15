@@ -4,15 +4,59 @@
 // -----------------------------------------------------------------------------
 
 /**
+ * CoerceError extends TypeError
+ */
+export class CoerceError extends TypeError {
+  /**
+   * Generate a CoerceError
+   * @param actual value
+   * @param expected value
+   */
+  constructor(actual: any, expected: string) {
+    super(`Expected “${actual}” to be ${expected}`);
+    this.name = 'CoerceError';
+    // @ts-ignore tsc barks at Error.captureStackTrace, but this is safe
+    if (Error.captureStackTrace) {
+      // @ts-ignore tsc barks at Error.captureStackTrace, but this is safe
+      Error.captureStackTrace(this, this.constructor);
+    }
+  }
+  toString() {
+    return this.message;
+  }
+}
+
+const SymbolTypeGuard = Symbol('is');
+
+export const is = <A extends (value: any) => any>(coercer: A) => {
+  const guard = (value: unknown): value is ReturnType<A> => {
+    try {
+      coercer(value);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+  (guard as Is<A>)[SymbolTypeGuard] = true;
+  return guard as Is<A>;
+};
+
+export const not = <A extends (value: any) => any>(coercer: A) => {
+  const guard = <T>(value: T): value is T extends ReturnType<A> ? never : T => !is(coercer)(value);
+  (guard as Not<A>)[SymbolTypeGuard] = true;
+  return guard as Not<A>;
+};
+
+/**
  * 1. throw Error; or
  * 2. throw error function factory; or
  * 3. return the `otherwise` value
  */
 const failure = <U>(error: Error, otherwise: U) => {
-  if (isFunction(otherwise)) {
+  if (is(func)(otherwise)) {
     throw otherwise(error);
   }
-  if (isInstance(Error)(otherwise)) {
+  if (is(instance(Error))(otherwise)) {
     throw otherwise;
   }
   // deno-lint-ignore ban-types
@@ -32,17 +76,37 @@ const pipe: Coerce = (...fns: ((value: unknown) => unknown)[]) =>
 
 /**
  * Handles issues where passing otherwise: undefined triggers the default
- * TypeError value. This workaround determines if the default otherwise:
- * TypeError should be used based on the argument count passed to the function.
+ * CoerceError value. This workaround determines if the default otherwise:
+ * CoerceError should be used based on the argument count passed to the function.
  * This is instead of simply using a default parameter value, which would not
  * work in the case where undefined is passed.
  */
 const params = <T, E>(args: [T] | [T, E]) => {
   if (args.length === 1) {
-    return [args[0] as T, TypeError] as const;
+    return [args[0] as T, CoerceError] as const;
   }
   // deno-lint-ignore ban-types
   return args as [T, Exclude<E, Error | Function>];
+};
+
+/**
+ * Since type guard functions return boolean, we need to wrap them when they are
+ * used within `pipe` so that the value is passed along instead of a boolean.
+ * @param coercer type guard (result of `is` or `not`) function or a coerce function
+ * @returns
+ */
+const guardInPipe = <T extends Is<R> | ((value: any) => any), R extends ((value: any) => any)>(
+  coercer: T,
+) => {
+  if ((coercer as Is<R>)[SymbolTypeGuard]) {
+    return (value: any) => {
+      if (coercer(value) === true) {
+        return value;
+      }
+      throw new CoerceError(value, 'something else');
+    };
+  }
+  return coercer;
 };
 
 /**
@@ -51,7 +115,7 @@ const params = <T, E>(args: [T] | [T, E]) => {
  * @example
  * ```js
  * coerce(string, trim, nonempty)(' foo '); // 'foo'
- * coerce(string, trim, nonempty)(' '); // TypeError
+ * coerce(string, trim, nonempty)(' '); // CoerceError
  * coerce(string, trim, nonempty)(' ', undefined); // undefined
  * ```
  */
@@ -59,193 +123,283 @@ export const coerce: Coerce = <A, Z>(...coercers: ((a: A) => Z)[]): Coercer<A, Z
   <T, E>(...args: [T] | [T, E]) => {
     const [value, otherwise] = params(args);
     try {
-      return pipe(...coercers)(value);
+      return pipe(...coercers.map(guardInPipe))(value);
     } catch (error) {
       return failure(error as Error, otherwise);
     }
   };
+
+export const to = coerce;
 //#endregion
 
-//#region Type Guards
+//#region Guards
 // -----------------------------------------------------------------------------
 
 /**
- * Type guard string
+ * `string` Guard
+ * @param value unknown
+ * @returns value
+ * @throws if value is not `string`
  */
-export const isString = (value: unknown): value is string => typeof value === 'string';
+export const string = <T>(value: T) => {
+  if (typeof value === 'string') {
+    return value;
+  }
+  throw new CoerceError(value, 'a string');
+};
 
 /**
- * Type guard number
+ * `number` Guard
+ * @param value unknown
+ * @returns value
+ * @throws if value is not `number`
  */
-export const isNumber = (value: unknown): value is number =>
-  typeof value === 'number' && Number.isFinite(value);
+export const number = <T>(value: T): number => {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+  throw new CoerceError(value, 'a number');
+};
 
 /**
- * Type guard bigint
+ * `bigint` Guard
+ * @param value unknown
+ * @returns value
+ * @throws if value is not `bigint`
  */
-export const isBigInt = (value: unknown): value is bigint => typeof value === 'bigint';
+export const bigint = <T>(value: T) => {
+  if (typeof value === 'bigint') {
+    return value;
+  }
+  throw new CoerceError(value, 'a bigint');
+};
 
 /**
- * Type guard function
+ * `Date` Guard
+ * @param value unknown
+ * @returns value
+ * @throws if value is not `Date`
  */
-// deno-lint-ignore ban-types
-export const isFunction = (value: unknown): value is Function => typeof value === 'function';
+export const date = <T>(value: T) => {
+  try {
+    const valid = coerce(object, instance(Date))(value);
+    coerce(finite, not(zero))(valid.valueOf());
+    return valid;
+  } catch {
+    // ignore
+  }
+  throw new CoerceError(value, 'a date');
+};
 
 /**
- * Type guard object
+ * `Array` Guard
+ * @param value unknown
+ * @returns value
+ * @throws if value is not `Array`
  */
-// deno-lint-ignore ban-types
-export const isObject = (value: unknown): value is object =>
-  typeof value === 'object' && value !== null;
+export const array = <T, V>(value: Array<T> | V) => {
+  if (Array.isArray(value)) {
+    return value as Array<T>;
+  }
+  throw new CoerceError(value, 'an array');
+};
 
 /**
- * Type guard array
+ * `Iterable` Guard
+ * @param value unknown
+ * @returns value
+ * @throws if value is not `Iterable`
  */
-export const isArray = <T, V>(value: Array<T> | V): value is Array<T> => Array.isArray(value);
+export const iterable = <T extends Iterable<U>, U>(value: T) => {
+  if (is(object)(value) && (Symbol.iterator in value)) {
+    return value as T & Iterable<T>;
+  }
+  throw new CoerceError(value, 'iterable');
+};
 
 /**
- * Type guard iterable
+ * Not `undefined` | `null` Guard
+ * @param value unknown
+ * @returns value
+ * @throws if value is `undefined` or `null`
  */
-export const isIterable = <T, V>(value: Iterable<T> | V): value is Iterable<T> =>
-  isObject(value) && (Symbol.iterator in value);
+export const defined = <T>(value: T) => {
+  if (typeof value !== 'undefined' && value !== null) {
+    return value as NonNullable<T>;
+  }
+  throw new CoerceError(value, 'defined');
+};
 
 /**
- * Type guard against `undefined` and `null`
+ * `object` Guard
+ * @param value unknown
+ * @returns value
+ * @throws if value is not an `object`
  */
-export const isDefined = <T>(value: T): value is NonNullable<T> =>
-  typeof value !== 'undefined' && value !== null;
+export const object = <T>(value: T) => {
+  if (typeof value === 'object' && value !== null) {
+    // deno-lint-ignore ban-types
+    return value as NonNullable<T & {}>;
+  }
+  throw new CoerceError(value, 'an object');
+};
 
 /**
- * Type guard instance
+ * `function` Guard
+ * @param value unknown
+ * @returns value
+ * @throws if value is not an `function`
  */
-export const isInstance = <T extends (new (...args: any[]) => any)>(constructor: T) =>
-  (value: unknown): value is InstanceType<T> =>
-    isFunction(constructor) && value instanceof constructor;
+export const func = <T>(value: T) => {
+  if (typeof value === 'function') {
+    // deno-lint-ignore ban-types
+    return value as T & Function;
+  }
+  throw new CoerceError(value, 'a function');
+};
 
+/**
+ * `instanceof …` Guard
+ * @param value unknown
+ * @returns value
+ * @throws if value is not `instanceof …`
+ */
+export const instance = <T extends (new (...args: any[]) => any)>(constructor: T) =>
+  (value: unknown) => {
+    if (is(func)(constructor) && value instanceof constructor) {
+      return value as InstanceType<T>;
+    }
+    throw new CoerceError(value, `an instance of ${constructor}`);
+  };
 //#endregion
 
 //#region Validators
 // -----------------------------------------------------------------------------
 
 /**
- * Confirm string is _not_ empty
+ * Finite number
+ * @param value number
+ * @returns value
+ * @throws if value is not finite
  */
-export const nonempty = (value: string) => {
-  if (value !== '') {
+export const finite = <T>(value: T) => {
+  if (typeof value === 'number' && Number.isFinite(value)) {
     return value;
   }
-  throw new TypeError('Empty string');
+  throw new CoerceError(value, 'representable as a string');
 };
-export const nonEmpty = nonempty;
 
 /**
- * Confirm input is _not_ 0
+ * Number is 0
+ * @param value number
+ * @returns value
+ * @throws if value is not 0
  */
-export const nonzero = (value: number) => {
-  if (value !== 0) {
-    return value;
+export const zero = <T extends number>(value: T) => {
+  if (value === 0) {
+    return value as 0;
   }
-  throw new TypeError(`“${value}” must be a non-zero number.`);
+  throw new CoerceError(value, '0');
 };
-export const nonZero = nonzero;
+
+// export const nonstring = <T>(value: T) => {
+//   if (!isString(value)) {
+//     return value as Exclude<T, string>;
+//   }
+//   throw new CoerceError(value, 'a string');
+// };
+// export const nonString = nonstring;
 
 /**
- * Confirm that input is greater than 0
+ * Number > 0
+ * @param value number
+ * @returns value
+ * @throws if value <= 0
  */
-export const positive = (value: number) => {
+export const positive = coerce(not(zero), (value: number) => {
   if (value > 0) {
     return value;
   }
-  throw new TypeError(`“${value}” is not a positive number.`);
-};
+  throw new CoerceError(value, 'a positive number');
+});
 
 /**
- * Confirm that input is less than 0
+ * Number < 0
+ * @param value number
+ * @returns value
+ * @throws if value >= 0
  */
-export const negative = (value: number) => {
-  if (value < 0) {
+export const negative = (value: number) =>
+  coerce(not(zero), not(positive))(value, new CoerceError(value, 'a negative number'));
+
+/**
+ * Date is in the future
+ * @param value date
+ * @returns value
+ * @throws if date is in the past
+ */
+export const future = (value: Date) => {
+  if (value.valueOf() > Date.now()) {
     return value;
   }
-  throw new TypeError(`“${value}” is not a negative number.`);
+  throw new CoerceError(value, 'in the future');
 };
 
 /**
- * Confirm value is defined
+ * Date is in the past
+ * @param value date
+ * @returns value
+ * @throws if date is in the future
  */
-export const defined = <T>(value: T) => {
-  if (isDefined(value)) {
+export const past = (value: Date) => {
+  if (value.valueOf() < Date.now()) {
     return value;
   }
-  throw new TypeError(`Unexpected ${value}`);
+  throw new CoerceError(value, 'in the past');
 };
 
 /**
- * Confirm value is an object
+ * Length of string or array is exactly `size`
+ * @param size length
+ * @returns validator
  */
-export const object = <T>(value: T) => {
-  if (isObject(value)) {
-    return value;
-  }
-  throw new TypeError(`${value} is not an object.`);
-};
-
-/**
- * Confirm value is a function
- */
-export const func = <T>(value: T) => {
-  if (isFunction(value)) {
-    return value;
-  }
-  throw new TypeError(`${value} is not a function.`);
-};
-
-/**
- * Confirm value is `instanceof` …
- */
-export const instance = <T extends (new (...args: any[]) => any)>(constructor: T) =>
-  (value: unknown) => {
-    if (isInstance(constructor)(value)) {
-      return value;
-    }
-    throw new TypeError(`${value} is not an instance of ${constructor.name || constructor}.`);
-  };
-
-/**
- * Confirm the `value` is within `list` (a.k.a. Enum)
- */
-// deno-lint-ignore ban-types
-export const within = <T extends string | number | boolean | object>(list: T[]) =>
+export const length = <N extends number>(size: N) =>
   /**
-   * Confirm the `value` is within `list` (a.k.a. Enum)
-   */
-  (value: unknown) => {
-    const index = list.indexOf(value as T);
-    if (index >= 0) {
-      return list[index];
-    }
-    throw new TypeError(`“${value}” must be one of ${list}`);
-  };
-
-/**
- * Require the length of the input to be exactly `size`.
- */
-export const length = (size: number) =>
-  /**
-   * Enforce the length of a  `string` or `array`
+   * Length of string or array is exactly `size`
+   * @param value `string` or `array`
+   * @returns value
+   * @throws if value is not of length `size`
    */
   <T extends { length: number }>(value: T) => {
     if (value?.length === size) {
-      return value;
+      return value as T & { length: N };
     }
-    throw new TypeError(`${value} must be of length ${size}.`);
+    throw new CoerceError(value, `of length: ${size}`);
   };
 
 /**
- * Luhn check a value
- * @param value string of digits
- * @returns boolean
+ * `value` is within `list` (a.k.a. Enum)
  */
-export const isLuhn = (value: string) => {
+export const within = <T>(list: readonly T[]) =>
+  /**
+   * @param value member of `list`
+   * @returns value
+   * @throws if value is not a member of `list`
+   */
+  <V>(value: V) => {
+    if (list.indexOf(value as unknown as T) >= 0) {
+      return value as V & T;
+    }
+    throw new CoerceError(value, `one of ${list}`);
+  };
+
+/**
+ * Validate against the Luhn algorithm
+ * @param value string of digits
+ * @returns value
+ * @throws if value does not pass Luhn algorithm
+ */
+export const luhn = (value: string) => {
   // adapted from https://github.com/bendrucker/fast-luhn
   // eslint-disable-next-line @typescript-eslint/no-shadow
   let { length } = value;
@@ -256,75 +410,78 @@ export const isLuhn = (value: string) => {
     bit ^= 1;
     sum += bit ? [0, 2, 4, 6, 8, 1, 3, 5, 7, 9][int] : int;
   }
-  return sum % 10 === 0;
+  if (sum % 10 === 0) {
+    return value;
+  }
+  throw new CoerceError(value, 'able to pass the Luhn test');
 };
 
 /**
- * Validate a value against the Luhn algorithm.
- * @param value string of digits
- * @returns value if it passes the Luhn algorithm
+ * Alias `not(length(0))`
+ * @see length
  */
-export const luhn = (value: string) => {
-  if (isLuhn(value)) {
-    return value;
-  }
-  throw new TypeError(`${value} failed Luhn test.`);
-};
+export const nonempty = not(length(0));
+
+/**
+ * Alias `not(zero)`
+ * @see zero
+ */
+export const nonzero = not(zero);
 //#endregion
 
-//#region Primitives
+//#region Mutators
 // -----------------------------------------------------------------------------
 
 /**
- * Coerce value to primitive `string`
+ * `string` Mutation
+ * @param value string | number | bigint
+ * @returns string
+ * @throws if value cannot be mutated to `string`
  */
-export const string = (value: string | number | bigint) => {
-  if (isString(value)) {
-    return value;
-  }
-  if (isNumber(value) || isBigInt(value)) {
+export const stringify = <T extends string | number | bigint>(value: T) => {
+  if (is(finite)(value) || is(bigint)(value)) {
     return value.toString();
   }
-  throw new TypeError(`Unable to parse “${value}” as a string.`);
+  return string(value);
 };
-
-export const nonstring = <T>(value: T) => {
-  if (!isString(value)) {
-    return value as Exclude<T, string>;
-  }
-  throw new TypeError(`${value} is a string.`);
-};
-export const nonString = nonstring;
 
 /**
- * Coerce value to `number`
+ * `number` Mutation
+ * @param value string | number | bigint
+ * @returns number
+ * @throws if value cannot be mutated to `number`
  */
-export const number = (value: string | number | bigint): number => {
-  if (isNumber(value)) {
+export const numeric = <T extends string | number | bigint>(value: T) => {
+  if (is(finite)(value)) {
     return value;
   }
-  // remove everything except characters allowed in a number
-  return number(Number(nonempty(string(value).replace(/[^0-9oex.-]/g, ''))));
+  try {
+    const stringValue = stringify(value).replace(/[^0-9oex.-]/g, '');
+    if (not(length(0))(stringValue)) {
+      return finite(Number(stringValue));
+    }
+  } catch {
+    // nothing to report here, we failed
+  }
+  throw new CoerceError(value, 'numeric');
 };
 
 /**
- * Coerce value to a valid `Date`
+ * `Date` Mutator
+ * @param value number | string | Date
+ * @returns Date
+ * @throws if value cannot be mutated to `Date`
  */
-export const date = (value: number | string | Date) => {
-  const dateObject = new Date(value);
-  nonZero(number(dateObject.valueOf()));
-  return dateObject;
-};
+export const dateify = <T extends number | string | Date>(value: T) =>
+  coerce(date)(new Date(value), new CoerceError(value, 'transformable to a Date'));
 
-interface CoerceBoolean {
-  (): (value: unknown) => true | false;
-  <T>(truthy: T): (value: unknown) => T | false;
-  <T, F>(truthy: T, falsey: F): (value: unknown) => T | F;
-  <T, F, N>(truthy: T, falsey: F, nully: N): (value: unknown) => T | F | N;
-  <T, F, N, U>(truthy: T, falsey: F, nully: N, undefy: U): (value: unknown) => T | F | N | U;
-}
 /**
- * Coerce value to boolean
+ * `boolean` Mutator
+ * @param truthy returned when value evaluates true
+ * @param falsy returned when value evaluates false (false, '0', 'false', …)
+ * @param nully returned when value evaluates null (null, '', 'null')
+ * @param undefy returned when value evaluates undefined (undefined, 'undefined', …)
+ * @returns boolean
  */
 export const boolean: CoerceBoolean = (
   truthy = true,
@@ -362,36 +519,65 @@ export const boolean: CoerceBoolean = (
   };
 
 /**
- * Confirm `value` is Iterable
+ * `Array` Mutator. Transform any iterable into an array [...value], except for
+ * `string`s. A `string` is wrapped as a single member array (`[value]`).
+ * @param value any iterable (Map, Set, …)
+ * @returns array
  */
-export const iterable = <T extends Iterable<U>, U>(value: T) => {
-  if (isIterable(value)) {
-    return value;
-  }
-  throw new TypeError(`${value} is not iterable.`);
-};
-
-type Iterated<T> = T extends Iterable<infer U> ? U : T;
-
-/**
- * `value` as an array if not an array
- */
-export const array = <T>(value: T): (Iterated<T>)[] => {
+export const arrayify = <T>(value: T): (IterableOrNot<T>)[] => {
   // a `string` _is_ Iterable, but we do not want to return an array of
   // characters
-  if (!isString(value) && isIterable(value)) {
-    return [...value] as (Iterated<T>)[];
+  if (is(array)(value)) {
+    return value as (IterableOrNot<T>)[];
   }
-  return [value] as (Iterated<T>)[];
+  if (!is(string)(value) && is(iterable)(value)) {
+    return [...value] as (IterableOrNot<T>)[];
+  }
+  return [value] as (IterableOrNot<T>)[];
 };
 
-//#endregion
+/**
+ * Mutate iterables (except strings) and objects to an array of entries.
+ * @param value iterable | object
+ * @returns array
+ * @throws if value cannot be transformed into an array of entries
+ */
+export const entries: Entries = <T extends Iterable<any>>(value: T) => {
+  if (is(iterable)(value)) {
+    return arrayify(value);
+  }
+  if (is(object)(value)) {
+    return Object.entries(value);
+  }
+  throw new CoerceError(value, `transformable to entries`);
+};
 
-//#region Mutators
-// -----------------------------------------------------------------------------
+/**
+ * Mutate to tuple pairs. Same as `entries`, but limits the entries array to a
+ * length of 2 for each member.
+ * @see entries
+ * @param value iterable | object
+ * @returns array
+ * @throws if value cannot be transformed into an array of entries
+ */
+export const pairs = <T extends Iterable<[K, V]>, K, V>(value: T) =>
+  entries(value)
+    .map(limit(2) as (value: [K, V]) => [K, V])
+    .filter(is(length(2)));
+
+/**
+ * Round to integer
+ * @param value number
+ * @returns number
+ * @throws if value is not a number
+ */
+export const integer = (value: number) => Math.round(value);
 
 /**
  * Remove dangerous characters from string
+ * @param value string
+ * @returns string
+ * @throws if value is not a string
  */
 export const safe = (value: string) => value.replace(/[\\|";/?<>()*[\]{}=`\t\r\n]/g, '');
 
@@ -400,14 +586,19 @@ export const safe = (value: string) => value.replace(/[\\|";/?<>()*[\]{}=`\t\r\n
  * @warning Does _not_ remove half-space and other UTF SPACE-like characters. Chain
  * `spaces` before `trim` in order to remove these special SPACE characters from
  * the string.
+ * @param value string
+ * @returns string
+ * @throws if value is not a string
  */
 export const trim = (value: string) => value.trim();
 
 /**
  * Replace all SPACE-like characters with a regular SPACE. Replace continuous
  * multiple SPACE characters with a single SPACE.
- *
  * @see https://jkorpela.fi/chars/spaces.html
+ * @param value string
+ * @returns string
+ * @throws if value is not a string
  */
 export const spaces = (value: string) =>
   value
@@ -419,6 +610,9 @@ export const spaces = (value: string) =>
 
 /**
  * Replace ' and " with ‘’ and “” respectively.
+ * @param value string
+ * @returns string
+ * @throws if value is not a string
  */
 export const quotes = (value: string) =>
   ([
@@ -463,6 +657,9 @@ export const quotes = (value: string) =>
 
 /**
  * Capitalize the first letter of a string
+ * @param value string
+ * @returns string
+ * @throws if value is not a string
  */
 export const ucfirst = (value: string) => value.charAt(0).toUpperCase() + value.slice(1);
 export const ucFirst = ucfirst;
@@ -501,6 +698,9 @@ const properNameCapitalizer = (mixedCase: boolean) =>
 
 /**
  * Fix capitalization of proper nouns: names, addresses
+ * @param value string
+ * @returns string
+ * @throws if value is not a string
  */
 export const proper = (value: string) =>
   value
@@ -514,38 +714,62 @@ export const proper = (value: string) =>
 
 /**
  * Format email addresses
+ * @param value string
+ * @returns string
+ * @throws if value does not resemble an email
  */
-export const email = (value: string) => nonempty(value.toLowerCase().replace(/\s+/g, ''));
+export const email = coerce(
+  (value: string) => value.toLowerCase().replace(/\s+/g, ''),
+  not(length(0)),
+  (value: string) => {
+    if (/[a-z0-9]@[a-z0-9]/.test(value)) {
+      return value;
+    }
+    throw new CoerceError(value, 'a valid email address');
+  },
+);
 
 /**
  * Strip all non-digit characters from string
+ * @param value string
+ * @returns string with only [0-9] digits
+ * @throws if value is not a string
  */
 export const digits = (value: string) => value.replace(/[^\d]/g, '');
 
 /**
  * Returns only the digits of a phone number without any formatting
+ * @param value string
+ * @returns string of 10+ digits
+ * @throws if value is not a string of 10+ digits (excluding leading 0 or 1)
  */
 export const phone = (value: string) => {
   const onlyDigits = digits(value).replace(/^[01]+/, '');
   if (onlyDigits.length >= 10) {
     return onlyDigits;
   }
-  throw new TypeError('Invalid US phone number.');
+  throw new CoerceError(value, 'a valid US phone number');
 };
 
 /**
  * Requires the input phone number to be exactly 10-digits (no extension)
+ * @param value string
+ * @returns string of exactly 10 digits
+ * @throws if value is not a string of exactly 10 digits (excluding leading 0 or 1)
  */
 export const phone10 = (value: string) => {
   const valid = phone(value);
   if (valid.length === 10) {
     return valid;
   }
-  throw new TypeError('Invalid US 10-digit phone number.');
+  throw new CoerceError(value, 'a valid US 10-digit phone number');
 };
 
 /**
  * Format phone number as “(NNN) NNN-NNNN ext N…”
+ * @param value string
+ * @returns string of formatted phone number
+ * @throws if value is not a string of at least 10 digits (excluding leading 0 or 1)
  */
 export const prettyPhone = (value: string) => {
   const valid = phone(value);
@@ -557,73 +781,102 @@ export const prettyPhone = (value: string) => {
 
 /**
  * 5-digit US postal code
+ * @param value string
+ * @returns string of 5-digit zip code
+ * @throws if value does not contain 5 digits
  */
-export const postalCodeUs5 = (value: string) => {
-  const code = digits(value).slice(0, 5);
-  if (code.length === 5) {
-    return code;
-  }
-  throw new TypeError('Invalid US postal code');
-};
-
-/**
- * Coerce/round value to integer
- */
-export const integer = (value: number) => Math.round(value);
-
-interface CoerceLimit {
-  (value: number): number;
-  (value: string): string;
-  <T>(value: T[]): T[];
-  <T extends number | string | U[], U>(value: T): T;
-}
+export const postalCodeUs5 = (value: string) =>
+  coerce(digits, limit(5), length(5))(
+    value,
+    new CoerceError(value, 'a valid US postal code'),
+  );
 
 /**
  * Limit the value of a `number`, characters in a `string`, or items in an
  * `array`
+ * @param max number
+ * @returns function to limit given input
  */
 export const limit = (max: number) =>
   /**
    * Limit the value of a `number`, characters in a `string`, or items in an
    * `array`
+   * @param value number | string | array
+   * @returns number | string | array limited to `max`
+   * @throws if value is not a number, string, or array
    */
-  ((value: unknown) => {
-    if (isNumber(value)) {
-      return Math.min(value, max);
+  <T extends (number | string | any[] | readonly any[])>(value: T) => {
+    if (is(number)(value)) {
+      return Math.min(value, max) as T;
     }
-    if (isString(value)) {
-      return value.slice(0, max);
+    if (is(string)(value)) {
+      return value.slice(0, max) as T;
     }
-    if (isArray(value)) {
-      return value.slice(0, max);
+    if (is(array)(value)) {
+      return value.slice(0, max) as T;
     }
-    throw new TypeError(`Unable to apply a max of ${max} to ${value}`);
-  }) as CoerceLimit;
+    throw new CoerceError(value, `able to be limited to ${max}`);
+  };
 
 /**
  * Split a string into an array. Optionally define a separator RegExp. Default
  * separator is comma, newline, space, tab.
  * @param separator default: `/[,\r\n\s]+/g` commas, newlines, spaces, tabs
+ * @param limit optionally limit the number of items in result
  */
-export const split = (separator = /[,\r\n\s]+/g) =>
+export const split = (separator = /[,\r\n\s]+/g, limit?: number) =>
   /**
    * Split a string by given `separator` (default: comma, newline, space, tab).
    * Remove empty strings from returned array.
    * @example
    * ```js
    * split()('a,b,,,c d e foo') // ['a', 'b', 'c', 'd', 'e', 'foo']
-   * ```js
+   * ```
+   * @param value string
+   * @returns array of strings split by `separator`
+   * @throws if value is not a string
    */
   (value: string) =>
     spaces(value) // remove irregular spaces
-      .split(separator)
+      .split(separator, limit)
       .map(trim)
-      .filter((item) => item !== '');
+      .filter(not(length(0)));
 
 //#endregion
 
 //#region Types
 // -----------------------------------------------------------------------------
+
+export type IterableOrNot<T> = T extends Iterable<infer U> ? U : T;
+
+export interface CoerceBoolean {
+  (): (value: unknown) => true | false;
+  <T>(truthy: T): (value: unknown) => T | false;
+  <T, F>(truthy: T, falsey: F): (value: unknown) => T | F;
+  <T, F, N>(truthy: T, falsey: F, nully: N): (value: unknown) => T | F | N;
+  <T, F, N, U>(truthy: T, falsey: F, nully: N, undefy: U): (value: unknown) => T | F | N | U;
+}
+
+export interface Entries {
+  <T>(value: Iterable<T>): T[];
+  <K extends string | number | symbol, V>(value: Record<K, V>): [K, V][];
+  <T extends Iterable<I> | Record<K, V>, I, K extends string | number | symbol, V>(
+    value: T,
+  ): I[] | [K, V][];
+}
+
+export interface CoerceGuard {
+  [SymbolTypeGuard]: true;
+}
+export interface Is<A extends (value: any) => any> extends CoerceGuard {
+  (value: unknown): value is ReturnType<A>;
+}
+export interface Not<A extends (value: any) => any> extends CoerceGuard {
+  <T>(value: T): value is T extends ReturnType<A> ? never : T;
+}
+
+export type PipeReturnType<T extends (value: any) => any> = T extends Is<infer R> ? ReturnType<R>
+  : (T extends Not<infer S> ? ReturnType<S> : ReturnType<T>);
 
 export interface PipeResult<I, O> {
   <Input>(value: Input): Input extends I ? (Input extends O ? Input : O) : never;
@@ -641,51 +894,51 @@ export interface Coerce {
   (): <I>(value: I) => I;
   <A extends (value: any) => any>(
     a: A,
-  ): Coercer<Parameters<A>[0], ReturnType<A>>;
-  <A extends (value: any) => any, B extends (value: ReturnType<A>) => any>(
+  ): Coercer<Parameters<A>[0], PipeReturnType<A>>;
+  <A extends (value: any) => any, B extends (value: PipeReturnType<A>) => any>(
     a: A,
     b: B,
-  ): Coercer<Parameters<A>[0], ReturnType<B>>;
+  ): Coercer<Parameters<A>[0], PipeReturnType<B>>;
   <
     A extends (value: any) => any,
-    B extends (value: ReturnType<A>) => any,
-    C extends (value: ReturnType<B>) => any,
+    B extends (value: PipeReturnType<A>) => any,
+    C extends (value: PipeReturnType<B>) => any,
   >(
     a: A,
     b: B,
     c: C,
-  ): Coercer<Parameters<A>[0], ReturnType<C>>;
+  ): Coercer<Parameters<A>[0], PipeReturnType<C>>;
   <
     A extends (value: any) => any,
-    B extends (value: ReturnType<A>) => any,
-    C extends (value: ReturnType<B>) => any,
-    D extends (value: ReturnType<C>) => any,
+    B extends (value: PipeReturnType<A>) => any,
+    C extends (value: PipeReturnType<B>) => any,
+    D extends (value: PipeReturnType<C>) => any,
   >(
     a: A,
     b: B,
     c: C,
     d: D,
-  ): Coercer<Parameters<A>[0], ReturnType<D>>;
+  ): Coercer<Parameters<A>[0], PipeReturnType<D>>;
   <
     A extends (value: any) => any,
-    B extends (value: ReturnType<A>) => any,
-    C extends (value: ReturnType<B>) => any,
-    D extends (value: ReturnType<C>) => any,
-    E extends (value: ReturnType<D>) => any,
+    B extends (value: PipeReturnType<A>) => any,
+    C extends (value: PipeReturnType<B>) => any,
+    D extends (value: PipeReturnType<C>) => any,
+    E extends (value: PipeReturnType<D>) => any,
   >(
     a: A,
     b: B,
     c: C,
     d: D,
     e: E,
-  ): Coercer<Parameters<A>[0], ReturnType<E>>;
+  ): Coercer<Parameters<A>[0], PipeReturnType<E>>;
   <
     A extends (value: any) => any,
-    B extends (value: ReturnType<A>) => any,
-    C extends (value: ReturnType<B>) => any,
-    D extends (value: ReturnType<C>) => any,
-    E extends (value: ReturnType<D>) => any,
-    F extends (value: ReturnType<E>) => any,
+    B extends (value: PipeReturnType<A>) => any,
+    C extends (value: PipeReturnType<B>) => any,
+    D extends (value: PipeReturnType<C>) => any,
+    E extends (value: PipeReturnType<D>) => any,
+    F extends (value: PipeReturnType<E>) => any,
   >(
     a: A,
     b: B,
@@ -693,15 +946,15 @@ export interface Coerce {
     d: D,
     e: E,
     f: F,
-  ): Coercer<Parameters<A>[0], ReturnType<F>>;
+  ): Coercer<Parameters<A>[0], PipeReturnType<F>>;
   <
     A extends (value: any) => any,
-    B extends (value: ReturnType<A>) => any,
-    C extends (value: ReturnType<B>) => any,
-    D extends (value: ReturnType<C>) => any,
-    E extends (value: ReturnType<D>) => any,
-    F extends (value: ReturnType<E>) => any,
-    G extends (value: ReturnType<F>) => any,
+    B extends (value: PipeReturnType<A>) => any,
+    C extends (value: PipeReturnType<B>) => any,
+    D extends (value: PipeReturnType<C>) => any,
+    E extends (value: PipeReturnType<D>) => any,
+    F extends (value: PipeReturnType<E>) => any,
+    G extends (value: PipeReturnType<F>) => any,
   >(
     a: A,
     b: B,
@@ -710,16 +963,16 @@ export interface Coerce {
     e: E,
     f: F,
     g: G,
-  ): Coercer<Parameters<A>[0], ReturnType<G>>;
+  ): Coercer<Parameters<A>[0], PipeReturnType<G>>;
   <
     A extends (value: any) => any,
-    B extends (value: ReturnType<A>) => any,
-    C extends (value: ReturnType<B>) => any,
-    D extends (value: ReturnType<C>) => any,
-    E extends (value: ReturnType<D>) => any,
-    F extends (value: ReturnType<E>) => any,
-    G extends (value: ReturnType<F>) => any,
-    H extends (value: ReturnType<G>) => any,
+    B extends (value: PipeReturnType<A>) => any,
+    C extends (value: PipeReturnType<B>) => any,
+    D extends (value: PipeReturnType<C>) => any,
+    E extends (value: PipeReturnType<D>) => any,
+    F extends (value: PipeReturnType<E>) => any,
+    G extends (value: PipeReturnType<F>) => any,
+    H extends (value: PipeReturnType<G>) => any,
   >(
     a: A,
     b: B,
@@ -729,10 +982,10 @@ export interface Coerce {
     f: F,
     g: G,
     h: H,
-  ): Coercer<Parameters<A>[0], ReturnType<H>>;
+  ): Coercer<Parameters<A>[0], PipeReturnType<H>>;
   <AZ extends (value: any) => any>(
     ...az: AZ[]
-  ): Coercer<Parameters<AZ>[0], ReturnType<AZ>>;
+  ): Coercer<Parameters<AZ>[0], PipeReturnType<AZ>>;
 }
 //#endregion
 

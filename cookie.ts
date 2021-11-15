@@ -2,9 +2,11 @@ import {
   boolean,
   coerce,
   date,
+  defined,
   integer,
-  isDefined,
-  nonempty,
+  is,
+  length,
+  not,
   number,
   positive,
   string,
@@ -32,7 +34,7 @@ export interface CookieOptions {
 }
 
 export const parse = (cookieString: string, decoder = decodeURIComponent) => {
-  const sanitizer = coerce(decoder, trim, nonempty);
+  const sanitizer = coerce(decoder, trim, not(length(0)));
   const splitPair = (pair: string) => {
     const [key, value] = pair.split('=', 2);
     return [sanitizer(key, undefined), sanitizer(value, undefined)] as const;
@@ -49,7 +51,7 @@ export const stringify = (
   options: CookieOptions & { encoder?: typeof encodeURIComponent } = {},
 ) => {
   const encoder = options.encoder || encodeURIComponent;
-  const keyEncoded = coerce(string, trim, nonempty, encoder)(
+  const keyEncoded = coerce(string, trim, not(length(0)), encoder)(
     key,
     new TypeError(`“${key}” invalid cookie key.`),
   );
@@ -60,7 +62,7 @@ export const stringify = (
   let { expires } = options;
   if (valueEncoded === '') {
     expires = new Date(0).toUTCString();
-  } else if (isDefined(expires)) {
+  } else if (is(defined)(expires)) {
     expires = coerce(date)(expires, new TypeError(`“${options.expires}” invalid cookie expires.`))
       .toUTCString();
   }
@@ -69,8 +71,8 @@ export const stringify = (
     [keyEncoded, valueEncoded] as const,
     ['expires', expires] as const,
     ['maxage', coerce(number, integer, positive)(options.maxage!, undefined)] as const,
-    ['domain', coerce(string, trim, nonempty)(options.domain!, undefined)] as const,
-    ['path', coerce(string, trim, nonempty)(options.path!, undefined)] as const,
+    ['domain', coerce(string, trim, not(length(0)))(options.domain!, undefined)] as const,
+    ['path', coerce(string, trim, not(length(0)))(options.path!, undefined)] as const,
     ['samesite', coerce(within(['none', 'lax', 'strict']))(options.samesite, 'none')] as const,
     ['secure', coerce(boolean(true, false, true, true))(options.secure)] as const,
     ['httponly', coerce(boolean(true, false, false, false))(options.httponly)] as const,
@@ -84,7 +86,7 @@ export const stringify = (
       }
       return undefined;
     })
-    .filter(isDefined)
+    .filter(is(defined))
     .join(';');
 };
 

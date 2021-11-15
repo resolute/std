@@ -1,5 +1,5 @@
 // @ts-ignore tsc non-sense
-import { coerce, instance, nonempty, string } from '../coerce.ts';
+import { instance, length, not, string, to } from '../coerce.ts';
 // @ts-ignore tsc non-sense
 import { fetchThrow500, readResponseError } from '../http.ts';
 // @ts-ignore tsc non-sense
@@ -37,7 +37,7 @@ const clearError = (form: HTMLFormElement) => {
 
 const showError = (submit: HTMLInputElement) =>
   (error: unknown) => {
-    const { message } = coerce(instance(Error))(
+    const { message } = to(instance(Error))(
       error,
       new Error('Unexpected error encountered. Please try again.'),
     );
@@ -47,8 +47,8 @@ const showError = (submit: HTMLInputElement) =>
 const handler = async (form: HTMLFormElement) => {
   const inputs = form.querySelectorAll('input');
   const submit = form.querySelector<HTMLInputElement>('input[type="submit"]')!;
-  const method = coerce(string, nonempty)(form.getAttribute('method')!, 'POST');
-  const uri = coerce(string, nonempty)(
+  const method = to(string, not(length(0)))(form.getAttribute('method')!, 'POST');
+  const uri = to(string, not(length(0)))(
     form.getAttribute('action')!,
     new TypeError(`Invalid “action” attribute on ${form}.`),
   );

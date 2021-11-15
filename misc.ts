@@ -1,9 +1,11 @@
 import {
   coerce,
+  defined,
   email,
-  isDefined,
+  is,
+  length,
   limit,
-  nonempty,
+  not,
   prettyPhone,
   proper,
   quotes,
@@ -15,12 +17,16 @@ import {
 
 export type MapNonNullable<T> = { [K in keyof T]: NonNullable<T[K]> };
 
-export type MapObject<A, B> = {
+export type MapKeyAValB<A, B> = {
   [K in keyof A as A[K] extends keyof B ? K : never]: A[K] extends keyof B ? B[A[K]]
     : never;
 };
 
-export const properName = coerce(string, spaces, trim, quotes, proper, nonempty, limit(100));
+export type MapKeys<A, B> = {
+  [K in keyof A as A[K] extends string ? A[K] : never]: K extends keyof B ? B[K] : never;
+};
+
+export const properName = coerce(string, spaces, trim, quotes, proper, not(length(0)), limit(100));
 
 export const cleanEmail = coerce(string, email, limit(100));
 
@@ -32,7 +38,7 @@ export const cleanPhone = coerce(string, prettyPhone);
 // deno-lint-ignore no-explicit-any
 export const isDefinedTuple = <T extends readonly any[]>(
   tuple: T,
-): tuple is MapNonNullable<T> => tuple.every(isDefined);
+): tuple is MapNonNullable<T> => tuple.every(is(defined));
 
 /**
  * Match the keys of `a` to the values of `b` by matching the values of `a` to
@@ -43,13 +49,33 @@ export const isDefinedTuple = <T extends readonly any[]>(
  * const b = { a: 1, b: 2 };
  * mapObject(a, b); // { foo: 1, bar: 2 }
  */
-export const mapObject = <A, B>(
+export const mapKeyAValB = <A, B>(
   a: A,
   b: B,
-): MapObject<A, B> =>
+): MapKeyAValB<A, B> =>
   Object.fromEntries(
     Object.entries(a)
       // @ts-ignore too much fighting with Object.*entries()
       .map(([aKey, aVal]) => [aKey, b[aVal]])
+      .filter(isDefinedTuple),
+  );
+
+/**
+ * Match the keys of `a` to the values of `b` by matching the values of `a` to
+ * the keys of `b` and eliminate undefined/null values.
+ *
+ * @example
+ * const a = { a: 'foo', b: 'bar', c: 'baz' };
+ * const b = { a: 1, b: 2 };
+ * mapObject(a, b); // { foo: 1, bar: 2 }
+ */
+export const mapKeys = <A, B>(
+  a: A,
+  b: B,
+): MapKeys<A, B> =>
+  Object.fromEntries(
+    Object.entries(a)
+      // @ts-ignore too much fighting with Object.*entries()
+      .map(([aKey, aVal]) => [aVal, b[aKey]])
       .filter(isDefinedTuple),
   );

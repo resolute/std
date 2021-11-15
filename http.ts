@@ -1,7 +1,8 @@
 import {
-  array,
+  arrayify,
   coerce,
   instance,
+  not,
   string,
   within,
   // @ts-ignore tsc non-sense
@@ -68,7 +69,7 @@ export const replaceErrors = (_key: string, value: unknown) => {
  */
 export const method = <T extends string[]>(list: T) =>
   (request: Request) => {
-    coerce(within(array(list)))(
+    coerce(within(arrayify(list)))(
       request.method,
       new HttpError(`Method must be within [${list.join(', ')}]`, 405),
     );
@@ -97,8 +98,8 @@ export const categorizeContentType = (input: Request | Response) => {
  */
 export const contentTypeCategory = (list: ReturnType<typeof categorizeContentType>[]) =>
   (input: Request | Response) => {
-    coerce(within(list))(
-      categorizeContentType(input),
+    coerce(categorizeContentType, within(list))(
+      input,
       new HttpError(`Content-Type category must be ${conjunction(list)}`, 415),
     );
     return input;
@@ -124,7 +125,7 @@ export const jsonResponse = (payload: unknown, status = 200) => {
   return new Response(JSON.stringify(payload, replaceErrors), {
     status: statusCodeFromError(payload) || status,
     headers: new Headers({
-      'Content-Type': 'application/json; charset=utf-8',
+      'content-type': 'application/json; charset=utf-8',
     }),
   });
 };
@@ -195,9 +196,7 @@ export const fetchOk = async (...args: Parameters<typeof fetch>) => {
  */
 export const fetchPass = async (status: number | number[], ...args: Parameters<typeof fetch>) => {
   const response = await fetch(...args);
-  try {
-    coerce(within(array(status)))(response.status, HttpError);
-  } catch {
+  if (not(within(arrayify(status)))(response.status)) {
     throw await readResponseError(response);
   }
   return response;

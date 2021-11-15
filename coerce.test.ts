@@ -2,24 +2,32 @@ import { assert, equals, strict, throws } from './deps.test.ts';
 
 import {
   array,
+  arrayify,
   boolean,
   coerce,
   date,
+  dateify,
   defined,
   email,
+  entries,
   func,
+  future,
   instance,
   integer,
+  is,
   iterable,
   length,
   limit,
   luhn,
   negative,
   nonempty,
-  nonstring,
   nonzero,
+  not,
   number,
+  numeric,
   object,
+  pairs,
+  past,
   phone,
   phone10,
   positive,
@@ -31,32 +39,38 @@ import {
   spaces,
   split,
   string,
+  stringify,
   trim,
   within,
+  zero,
 } from './coerce.ts';
+
+Deno.test('is', () => {
+  strict(is(number)(1), true);
+});
 
 Deno.test('string', () => {
   strict(coerce(string)('1'), '1');
-  strict(coerce(string)(1), '1');
-  strict(coerce(string)(1n), '1');
-  throws(() => coerce(string)(true as unknown as string));
-  throws(() => coerce(string)(Symbol(1) as unknown as string));
-  throws(() => coerce(string)(new Error('foo') as unknown as string));
-  throws(() => coerce(string)(new Uint8Array([1, 2, 3]) as unknown as string));
-  throws(() => coerce(string)(['1'] as unknown as string));
-  throws(() => coerce(string)(-Infinity as unknown as string));
-  throws(() => coerce(string)(null as unknown as string));
-  throws(() => coerce(string)(undefined as unknown as string));
-  throws(() => coerce(string)({} as unknown as string));
+  strict(coerce(stringify)(1), '1');
+  strict(coerce(stringify)(1n), '1');
+  throws(() => coerce(stringify)(true as unknown as string));
+  throws(() => coerce(stringify)(Symbol(1) as unknown as string));
+  throws(() => coerce(stringify)(new Error('foo') as unknown as string));
+  throws(() => coerce(stringify)(new Uint8Array([1, 2, 3]) as unknown as string));
+  throws(() => coerce(stringify)(['1'] as unknown as string));
+  throws(() => coerce(stringify)(-Infinity as unknown as string));
+  throws(() => coerce(stringify)(null as unknown as string));
+  throws(() => coerce(stringify)(undefined as unknown as string));
+  throws(() => coerce(stringify)({} as unknown as string));
   throws(() =>
-    coerce(string)({
+    coerce(stringify)({
       toString() {
         return '1';
       },
     } as unknown as string)
   );
   throws(() =>
-    coerce(string)({
+    coerce(stringify)({
       noToStringMethod() {
         return '1';
       },
@@ -65,8 +79,8 @@ Deno.test('string', () => {
 });
 
 Deno.test('nonstring', () => {
-  strict(coerce(nonstring)(1), 1);
-  throws(() => coerce(nonstring)('foo'));
+  strict(coerce(not(string))(1), 1);
+  throws(() => coerce(not(string))('foo'));
 });
 
 Deno.test('trim', () => {
@@ -78,6 +92,7 @@ Deno.test('spaces', () => {
 });
 
 Deno.test('nonempty', () => {
+  strict(coerce(not(length(0)))(' '), ' ');
   strict(coerce(nonempty)(' '), ' ');
 });
 
@@ -131,43 +146,61 @@ Deno.test('iterable', () => {
 });
 
 Deno.test('array', () => {
-  equals(coerce(array)(new Map([[1, '1']])), [[1, '1']]);
-  equals(coerce(array)(new Set(['1', '2'])), ['1', '2']);
+  equals(coerce(arrayify)(new Map([[1, '1']])), [[1, '1']]);
+  equals(coerce(arrayify)(new Set(['1', '2'])), ['1', '2']);
   equals(coerce(array)(['1']), ['1']);
   // not ['1', '2', '3'] even though Strings are iterable
-  equals(coerce(array)('123'), ['123']);
+  equals(coerce(arrayify)('123'), ['123']);
   // buffers → array of char codes
-  equals(coerce(array)(new Uint8Array('123'.split('').map((s) => s.charCodeAt(0)))), [49, 50, 51]);
-  equals(coerce(array)(true), [true]);
-  equals(coerce(array)(undefined), [undefined]);
+  equals(coerce(arrayify)(new Uint8Array('123'.split('').map((s) => s.charCodeAt(0)))), [
+    49,
+    50,
+    51,
+  ]);
+  equals(coerce(arrayify)(true), [true]);
+  equals(coerce(arrayify)(undefined), [undefined]);
   // WeakSet non-iterable, so it gets wrapped in array
   const weakSet = new WeakSet();
-  equals(coerce(array)(weakSet), [weakSet]);
+  equals(coerce(arrayify)(weakSet), [weakSet]);
+});
+
+Deno.test('entries', () => {
+  equals(entries(new Map([[1, 2], [3, 4]])), [[1, 2], [3, 4]]);
+  equals(entries({ foo: 1, bar: 2 }), [['foo', 1], ['bar', 2]]);
+  equals(entries(new Set([1, 2, 3])), [1, 2, 3]);
+  throws(() => entries(() => {}));
+});
+
+Deno.test('pairs', () => {
+  equals(pairs(new Map([[1, 2], [3, 4]])), [[1, 2], [3, 4]]);
+  equals(pairs(entries({ foo: 1, bar: 2 })), [['foo', 1], ['bar', 2]]);
+  equals(pairs([[1, 2, 3, 4], [5, 6]] as [number, number][]), [[1, 2], [5, 6]]);
+  equals(pairs(new Set([1, 2, 3]) as unknown as Map<number, number>), []);
 });
 
 Deno.test('number', () => {
   throws(() => coerce(number)(NaN));
   throws(() => coerce(number)(Infinity));
-  throws(() => coerce(number)('foo'));
-  throws(() => coerce(number)(''));
-  throws(() => coerce(number)('-1.234.5'));
+  throws(() => coerce(numeric)('foo'));
+  throws(() => coerce(numeric)(''));
+  throws(() => coerce(numeric)('-1.234.5'));
   throws(() => coerce(positive)(+0));
   throws(() => coerce(negative)(-0));
-  strict(coerce(number)(0o10), 8);
-  strict(coerce(number)(0xff), 255);
-  strict(coerce(number)(2e3), 2000);
-  strict(coerce(number)(1n), 1);
+  strict(coerce(numeric)(0o10), 8);
+  strict(coerce(numeric)(0xff), 255);
+  strict(coerce(numeric)(2e3), 2000);
+  strict(coerce(numeric)(1n), 1);
   strict(coerce(number)(1.1), 1.1);
-  strict(coerce(number, positive)('1.2'), 1.2);
-  strict(coerce(number)('-1.234'), -1.234);
-  strict(coerce(number)('0'), 0);
+  strict(coerce(numeric, positive)('1.2'), 1.2);
+  strict(coerce(numeric)('-1.234'), -1.234);
+  strict(coerce(numeric)('0'), 0);
   strict(coerce(number, negative)(-0.5), -0.5);
   strict(coerce(number, negative)(-1), -1);
-  strict(coerce(number, negative)('-2.345'), -2.345);
-  strict(coerce(nonzero, integer)(1.2), 1);
+  strict(coerce(numeric, negative)('-2.345'), -2.345);
+  strict(coerce(not(zero), integer)(1.2), 1);
   throws(() => coerce(nonzero, integer)(0));
-  throws(() => coerce(nonzero)(-0));
-  throws(() => coerce(number, nonzero)(''));
+  throws(() => coerce(not(zero))(-0));
+  throws(() => coerce(number, not(zero))(''));
 });
 
 Deno.test('object', () => {
@@ -225,8 +258,8 @@ Deno.test('luhn', () => {
 
 Deno.test('email', () => {
   strict(coerce(email)(' Foo@Bar.com'), 'foo@bar.com');
-  // this will also pass as the @ format is not validated
-  strict(coerce(email)('foo '), 'foo');
+  // basically, `email` just checks for “@” surrounded by alphanumeric
+  throws(() => coerce(email)('foo '));
 });
 
 Deno.test('phone', () => {
@@ -240,8 +273,10 @@ Deno.test('phone', () => {
 
 Deno.test('date', () => {
   throws(() => coerce(date)(new Date(0)));
-  throws(() => coerce(date)(undefined!));
-  equals(coerce(date)(1628623372929), new Date(1628623372929));
+  throws(() => coerce(dateify)(undefined!));
+  equals(coerce(dateify)(1628623372929), new Date(1628623372929));
+  equals(is(future)(new Date(Date.now() + 1)), true);
+  equals(is(past)(new Date(Date.now() - 1)), true);
 });
 
 // a default/backup value
