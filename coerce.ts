@@ -862,14 +862,6 @@ export const split = (separator = /[,\r\n\s]+/g, limit?: number) =>
 
 export type IterableOrNot<T> = T extends Iterable<infer U> ? U : T;
 
-export interface CoerceBoolean {
-  (): (value: unknown) => true | false;
-  <T>(truthy: T): (value: unknown) => T | false;
-  <T, F>(truthy: T, falsey: F): (value: unknown) => T | F;
-  <T, F, N>(truthy: T, falsey: F, nully: N): (value: unknown) => T | F | N;
-  <T, F, N, U>(truthy: T, falsey: F, nully: N, undefy: U): (value: unknown) => T | F | N | U;
-}
-
 export interface Entries {
   <T>(value: Iterable<T>): T[];
   <K extends string | number | symbol, V>(value: Record<K, V>): [K, V][];
