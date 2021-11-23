@@ -52,8 +52,11 @@ export const statusCodeFromError = (value: unknown) => {
  * Replace Error objects with `{"message":"…"}` during JSON.stringify()
  *
  * @example
+ * ```ts
+ * import { replaceErrors } from '@resolute/std/http';
  * JSON.stringify(new Error('foo'), replaceErrors);
  * // '{"message":"Error: foo"}'
+ * ```
  */
 export const replaceErrors = (_key: string, value: unknown) => {
   if (value instanceof Error) {

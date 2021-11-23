@@ -33,9 +33,10 @@ Type validation and sanitization.
 Coerce input to types and formats with sanitizers and validators.
 
 ```js
-to(string, trim, not(length(0)))(' foo '); // 'foo'
-to(string, trim, not(length(0)))(' '); // TypeError
-to(string, trim, not(length(0)))(' ', undefined); // undefined
+import { coerce, length, not, string, trim } from '@resolute/std/coerce';
+coerce(string, trim, not(length(0)))(' foo '); // 'foo'
+coerce(string, trim, not(length(0)))(' '); // TypeError
+coerce(string, trim, not(length(0)))(' ', undefined); // undefined
 ```
 
 ## [`./color`](https://github.com/resolute/std/blob/master/color.ts)
@@ -119,6 +120,7 @@ Wrap a function that to be executed once. Subsequent calls will return the value
 only) invocation.
 
 ```ts
+import { once } from '@resolute/std/control';
 let value = 0;
 const incr = () => ++value;
 once(incr)(); // 1

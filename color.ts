@@ -75,8 +75,11 @@ export const parse = (input: string | number | number[]) => {
  *
  * **Warning:** be sure to `clamp()` your percent (fraction).
  * @example
- *    const blender = blend('#000', '#888');
- *    toHex(blender(0.5)); // #444444
+ * ```ts
+ * import { blend, toHex } from '@resolute/std/color';
+ * const blender = blend('#000', '#888');
+ * toHex(blender(0.5)); // #444444
+ * ```
  * @param a initial color
  * @param b final color
  */

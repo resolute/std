@@ -113,10 +113,11 @@ const guardInPipe = <T extends Is<R> | ((value: any) => any), R extends ((value:
  * Coerce input to specific types and formats.
  * `coerce(...coercers)(value[, backup])`
  * @example
- * ```js
- * coerce(string, trim, nonempty)(' foo '); // 'foo'
- * coerce(string, trim, nonempty)(' '); // CoerceError
- * coerce(string, trim, nonempty)(' ', undefined); // undefined
+ * ```ts
+ * import { coerce, string, trim, not, length } from '@resolute/std/coerce';
+ * coerce(string, trim, not(length(0)))(' foo '); // 'foo'
+ * coerce(string, trim, not(length(0)))(' '); // TypeError
+ * coerce(string, trim, not(length(0)))(' ', undefined); // undefined
  * ```
  */
 export const coerce: Coerce = <A, Z>(...coercers: ((a: A) => Z)[]): Coercer<A, Z> =>
@@ -301,14 +302,6 @@ export const zero = <T extends number>(value: T) => {
   }
   throw new CoerceError(value, '0');
 };
-
-// export const nonstring = <T>(value: T) => {
-//   if (!isString(value)) {
-//     return value as Exclude<T, string>;
-//   }
-//   throw new CoerceError(value, 'a string');
-// };
-// export const nonString = nonstring;
 
 /**
  * Number > 0
@@ -842,7 +835,8 @@ export const split = (separator = /[,\r\n\s]+/g, limit?: number) =>
    * Split a string by given `separator` (default: comma, newline, space, tab).
    * Remove empty strings from returned array.
    * @example
-   * ```js
+   * ```ts
+   * import { split } from '@resolute/std/coerce';
    * split()('a,b,,,c d e foo') // ['a', 'b', 'c', 'd', 'e', 'foo']
    * ```
    * @param value string

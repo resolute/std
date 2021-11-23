@@ -45,9 +45,12 @@ export const isDefinedTuple = <T extends readonly any[]>(
  * the keys of `b` and eliminate undefined/null values.
  *
  * @example
+ * ```ts
+ * import { mapKeyAValB } from '@resolute/std/misc';
  * const a = { foo: 'a', bar: 'b', baz: 'c' };
  * const b = { a: 1, b: 2 };
- * mapObject(a, b); // { foo: 1, bar: 2 }
+ * mapKeyAValB(a, b); // { foo: 1, bar: 2 }
+ * ```
  */
 export const mapKeyAValB = <A, B>(
   a: A,
@@ -65,9 +68,12 @@ export const mapKeyAValB = <A, B>(
  * the keys of `b` and eliminate undefined/null values.
  *
  * @example
+ * ```ts
+ * import { mapKeys } from '@resolute/std/misc';
  * const a = { a: 'foo', b: 'bar', c: 'baz' };
  * const b = { a: 1, b: 2 };
- * mapObject(a, b); // { foo: 1, bar: 2 }
+ * mapKeys(a, b); // { foo: 1, bar: 2 }
+ * ```
  */
 export const mapKeys = <A, B>(
   a: A,

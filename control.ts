@@ -24,7 +24,7 @@ const onceCache = new WeakMap<(...args: any[]) => any, any>();
  * value of the first (and only) invocation.
  * @example
  * ```ts
- * import { once } from './once.ts';
+ * import { once } from '@resolute/std/control';
  * let value = 0;
  * const incr = () => ++value;
  * once(incr)(); // 1

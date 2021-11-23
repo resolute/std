@@ -5,6 +5,7 @@
   "deno.lint": true,
   "deno.unstable": true,
   "deno.config": "deno.json",
+  "deno.importMap": "./import_map.json",
   "files.exclude": {
     "node_modules": true,
     "**/*.d.ts": true,
