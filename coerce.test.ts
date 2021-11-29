@@ -53,28 +53,28 @@ Deno.test('string', () => {
   strict(coerce(string)('1'), '1');
   strict(coerce(stringify)(1), '1');
   strict(coerce(stringify)(1n), '1');
-  throws(() => coerce(stringify)(true as unknown as string));
-  throws(() => coerce(stringify)(Symbol(1) as unknown as string));
-  throws(() => coerce(stringify)(new Error('foo') as unknown as string));
-  throws(() => coerce(stringify)(new Uint8Array([1, 2, 3]) as unknown as string));
-  throws(() => coerce(stringify)(['1'] as unknown as string));
-  throws(() => coerce(stringify)(-Infinity as unknown as string));
-  throws(() => coerce(stringify)(null as unknown as string));
-  throws(() => coerce(stringify)(undefined as unknown as string));
-  throws(() => coerce(stringify)({} as unknown as string));
+  throws(() => coerce(stringify)(true));
+  throws(() => coerce(stringify)(Symbol(1)));
+  throws(() => coerce(stringify)(new Error('foo')));
+  throws(() => coerce(stringify)(new Uint8Array([1, 2, 3])));
+  throws(() => coerce(stringify)(['1']));
+  throws(() => coerce(stringify)(-Infinity));
+  throws(() => coerce(stringify)(null));
+  throws(() => coerce(stringify)(undefined));
+  throws(() => coerce(stringify)({}));
   throws(() =>
     coerce(stringify)({
       toString() {
         return '1';
       },
-    } as unknown as string)
+    })
   );
   throws(() =>
     coerce(stringify)({
       noToStringMethod() {
         return '1';
       },
-    } as unknown as string)
+    })
   );
 });
 
@@ -116,7 +116,7 @@ Deno.test('postalCodeUs5', () => {
   strict(coerce(postalCodeUs5)('07417-1111'), '07417');
   throws(() => coerce(postalCodeUs5)('0741'));
   // numbers not allowed because leading 0’s mess things up
-  throws(() => coerce(postalCodeUs5)(10001 as unknown as string));
+  throws(() => coerce(postalCodeUs5)(10001));
 });
 
 Deno.test('defined', () => {
@@ -156,7 +156,7 @@ Deno.test('boolean', () => {
 
 Deno.test('iterable', () => {
   equals(coerce(iterable)(new Set([1, 2, 3])), new Set([1, 2, 3]));
-  throws(() => coerce(iterable)(new WeakSet() as unknown as Set<number>));
+  throws(() => coerce(iterable)(new WeakSet()));
 });
 
 Deno.test('array', () => {
@@ -243,8 +243,8 @@ Deno.test('limit', () => {
   equals(coerce(limit(4))(5), 4);
   strict(coerce(limit(3))('foobar'), 'foo');
   equals(coerce(limit(2))([1, 2, 3, 4, 5]), [1, 2]);
-  throws(() => coerce(limit(1))({} as number));
-  throws(() => coerce(limit(0))(null as unknown as number));
+  throws(() => coerce(limit(1))({}));
+  throws(() => coerce(limit(0))(null));
 });
 
 Deno.test('length', () => {
@@ -289,8 +289,8 @@ Deno.test('date', () => {
   throws(() => coerce(date)(new Date(0)));
   throws(() => coerce(dateify)(undefined!));
   equals(coerce(dateify)(1628623372929), new Date(1628623372929));
-  equals(is(future)(new Date(Date.now() + 1)), true);
-  equals(is(past)(new Date(Date.now() - 1)), true);
+  strict(is(future)(new Date(Date.now() + 1)), true);
+  strict(is(past)(new Date(Date.now() - 1)), true);
   throws(() => coerce(future)(new Date(Date.now() - 1)));
   throws(() => coerce(past)(new Date(Date.now() + 1)));
 });

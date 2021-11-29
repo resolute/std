@@ -1,5 +1,5 @@
 // @ts-ignore tsc non-sense
-import { CoerceError, is, string, within } from './coerce.ts';
+import { is, makeError, string, within } from './coerce.ts';
 
 export type MimeTypes = keyof typeof mimeDatabase;
 
@@ -26,9 +26,9 @@ const extDatabase = Object.fromEntries(
   [...Object.entries(mimeDatabase)]
     .map(([mimetype, extensions]) =>
       extensions
-        .map((extension) => [extension, mimetype as keyof typeof mimeDatabase] as const)
+        .map((extension) => [extension, mimetype as MimeTypes] as const)
     ).flat(),
-) as { [K in keyof typeof mimeDatabase as (typeof mimeDatabase)[K][0]]: K };
+) as { [K in MimeTypes as (typeof mimeDatabase)[K][number]]: K };
 
 const check = <T>(regex: RegExp, keys: readonly T[], message: string) =>
   (input: unknown) => {
@@ -36,7 +36,7 @@ const check = <T>(regex: RegExp, keys: readonly T[], message: string) =>
     if (is(within(keys))(cleaned)) {
       return cleaned;
     }
-    throw new CoerceError(input, message);
+    throw makeError(input, message);
   };
 
 /**
@@ -44,11 +44,11 @@ const check = <T>(regex: RegExp, keys: readonly T[], message: string) =>
  */
 export const ext = check(
   /^\./,
-  Object.keys(extDatabase) as (keyof typeof extDatabase)[],
+  Object.keys(extDatabase) as MimeExtensions[],
   'a valid extension',
 );
 
-export const isExt: (input: unknown) => input is keyof typeof extDatabase = is(ext);
+export const isExt: (input: unknown) => input is MimeExtensions = is(ext);
 
 /**
  * Convert a file extension to a mime type.
@@ -60,14 +60,14 @@ export const extToMime = (input: unknown) => extDatabase[ext(input)];
  */
 export const mime = check(
   /;.*$/,
-  Object.keys(mimeDatabase) as (keyof typeof mimeDatabase)[],
+  Object.keys(mimeDatabase) as MimeTypes[],
   'a valid mime type',
 );
 
 /**
  * Type guard for mime type.
  */
-export const isMime: (input: unknown) => input is keyof typeof mimeDatabase = is(mime);
+export const isMime: (input: unknown) => input is MimeTypes = is(mime);
 
 /**
  * Convert a mime type to a file extension.

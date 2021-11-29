@@ -14,7 +14,7 @@ npm i @resolute/std
 
 ## Usage
 
-```js
+```ts
 import { fetchOk } from '@resolute/std/http';
 try {
   await fetchOk('https://httpstat.us/500');
@@ -32,7 +32,7 @@ Type validation and sanitization.
 
 Coerce input to types and formats with sanitizers and validators.
 
-```js
+```ts
 import { coerce, length, not, string, trim } from '@resolute/std/coerce';
 coerce(string, trim, not(length(0)))(' foo '); // 'foo'
 coerce(string, trim, not(length(0)))(' '); // TypeError
@@ -48,7 +48,8 @@ colors.
 
 Convert a hex color string #xxxxxx or rgb array [r, g, b] to an integer.
 
-```js
+```ts
+import { parse } from '@resolute/std/color';
 parse('#888'); // 8947848
 ```
 
@@ -72,7 +73,8 @@ integer → [r, g, b]
 
 Blend two colors using a percent.
 
-```js
+```ts
+import { blend, toHex } from '@resolute/std/color';
 const blender = blend('#000', '#888');
 toHex(blender(0.0)); // #000000 (0%)
 toHex(blender(0.5)); // #444444 (50%)
@@ -88,8 +90,9 @@ Runtime and control flow helpers.
 Wrap an async or promise-returning function that when called will retry up to `retries` times or
 until it resolves, whichever comes first.
 
-```js
-await retry(fetch)('https://…');
+```ts
+import { retry } from '@resolute/std/control';
+await retry(fetch)('https://httpstat.us/200');
 ```
 
 ### `sleep`
@@ -97,7 +100,8 @@ await retry(fetch)('https://…');
 Promisify `setTimeout`. Returns a Promise that settles with the return of the passed function after
 `delay` milliseconds.
 
-```js
+```ts
+import { sleep } from '@resolute/std/control';
 await sleep(1000, (then) => Date.now() - then, Date.now());
 // ~1000
 ```
@@ -107,11 +111,12 @@ await sleep(1000, (then) => Date.now() - then, Date.now());
 Create and return a new promise along with its resolve and reject parameters. Especially useful when
 “promisifying” a callback style API.
 
-```js
+```ts
+import { defer } from '@resolute/std/control';
 const [promise, resolve, reject] = defer();
 addEventListener('success', resolve);
 addEventListener('error', reject);
-return promise;
+await promise;
 ```
 
 ### `once`
@@ -145,9 +150,10 @@ Helpers for interacting with `Request` and `Response` objects.
 
 Throw if value is not in list.
 
-```js
-method(['GET', 'POST'])('POST'); // 'POST'
-method(['GET', 'POST'])('PUT'); // HttpError: Method must be within [GET, POST]
+```ts
+import { method } from '@resolute/std/http';
+method(['GET', 'POST'])(new Request('/', { method: 'POST' })); // 'POST'
+method(['GET', 'POST'])(new Request('/', { method: 'PUT' })); // HttpError: Method must be within [GET, POST]
 ```
 
 ### `readBody`
@@ -155,8 +161,9 @@ method(['GET', 'POST'])('PUT'); // HttpError: Method must be within [GET, POST]
 Invoke the correct Request/Response body reading method (json/text/formData/arrayBuffer) based on
 the content-type header.
 
-```js
-const body = await readBody(anyRequest);
+```ts
+import { readBody } from '@resolute/std/http';
+const body = await readBody(new Response());
 ```
 
 ## [`./intl`](https://github.com/resolute/std/blob/master/intl.ts)
@@ -167,7 +174,8 @@ Intl helpers.
 
 Transform an array to a en/US grammar list.
 
-```js
+```ts
+import { conjunction } from '@resolute/std/intl';
 conjunction('1'); // '1'
 conjunction(['1', '2']); // '1 and 2'
 conjunction(['1', '2', '3']); // '1, 2, and 3'
@@ -183,7 +191,8 @@ Define a ranging function to calculate the number bound by `min` and `max` and a
 (0 through 1). Note: `percent`s (fractions) less than 0 or greater than 1 will return values outside
 of the `min`–`max` range.
 
-```js
+```ts
+import { range } from '@resolute/std/math';
 range(0, 10)(0.5); // 5
 range(0, 10)(1.5); // 15
 range(0, 10)(-0.5); // -5
@@ -193,7 +202,8 @@ range(0, 10)(-0.5); // -5
 
 Define a scaling function to calculate the percentage of `value` relative to `min` and `max`.
 
-```js
+```ts
+import { scale } from '@resolute/std/math';
 scale(0, 10)(5); // 0.5
 scale(0, 10)(15); // 1.5
 scale(0, 10)(-5); // -0.5
@@ -203,7 +213,8 @@ scale(0, 10)(-5); // -0.5
 
 Define a clamping function to keep a `value` bound to the `min` and `max`.
 
-```js
+```ts
+import { clamp } from '@resolute/std/math';
 clamp(0, 1)(0.5); // 0.5
 clamp(0, 1)(5); // 1
 clamp(0, 1)(-5); // 0
@@ -214,7 +225,8 @@ clamp(0, 1)(-5); // 0
 Generate a scale for each member of an array with (optional) `overlap`. Use with array.map() to
 generate the divided scales.
 
-```js
+```ts
+import { divide } from '@resolute/std/math';
 [1, 2, 3]
   .map(divide())
   .map(([value, scaler]) => [
@@ -246,7 +258,8 @@ Validate mime types and file extensions as well as convert from mime to extensio
 
 Convert a file extension to a mime type.
 
-```js
+```ts
+import { extToMime } from '@resolute/std/mime';
 extToMime('avif'); // 'image/avif'
 extToMime('.avif'); // 'image/avif'
 extToMime('foo'); // TypeError “foo” is not a valid extension.
@@ -256,7 +269,8 @@ extToMime('foo'); // TypeError “foo” is not a valid extension.
 
 Convert a mime type to a file extension.
 
-```js
+```ts
+import { mimeToExt } from '@resolute/std/mime';
 mimeToExt('image/avif'); // 'avif'
 mimeToExt('text/html; charset=utf-8'); // 'html'
 mimeToExt('foo/bar'); // TypeError “foo/bar” is not a valid mime type.
@@ -266,15 +280,28 @@ mimeToExt('foo/bar'); // TypeError “foo/bar” is not a valid mime type.
 
 Miscellaneous utilities without a home.
 
-### `mapObject`
+### `mapKeyAValB`
 
 Match the keys of `a` to the values of `b` by matching the values of `a` to the keys of `b` and
 eliminate undefined/null values.
 
-```js
+```ts
+import { mapKeyAValB } from '@resolute/std/misc';
 const a = { foo: 'a', bar: 'b', baz: 'c' };
 const b = { a: 1, b: 2 };
-mapObject(a, b); // { foo: 1, bar: 2 }
+mapKeyAValB(a, b); // { foo: 1, bar: 2 }
+```
+
+### `mapKeys`
+
+Match the keys of `a` to the values of `b` by matching the values of `a` to the keys of `b` and
+eliminate undefined/null values.
+
+```ts
+import { mapKeys } from '@resolute/std/misc';
+const a = { a: 'foo', b: 'bar', c: 'baz' };
+const b = { a: 1, b: 2 };
+mapKeys(a, b); // { foo: 1, bar: 2 }
 ```
 
 ### `properName`
@@ -303,12 +330,14 @@ Provides caching behavior to an expensive function. Can perform periodic backgro
 - `.start(delay)`: continuously invoke expensive function
 - `.stop()`: continuous invocation
 
-```js
+```ts
+import { keeper } from '@resolute/std/promise';
+const expensive = async () => Math.random() ** Math.random();
 const kept = keeper(expensive);
-kept.stale(); // throws because cache is empty
-await kept.get(); // triggers expensive() because cache is empty
-kept.stale(); // sync returns the resolved value of expensive()
-kept.fresh(); // causes a new expensive() invocation
+kept.stale(); // sync; throws because cache is empty
+await kept.get(); // invokes expensive() because cache is empty
+kept.stale(); // sync; returns the resolved value of expensive()
+kept.fresh(); // forces a new expensive() invocation
 ```
 
 TODO: document missing items
