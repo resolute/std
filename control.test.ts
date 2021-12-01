@@ -58,8 +58,8 @@ Deno.test('throttle', async () => {
   const totalTime = (totalRuns * interval) / limit;
   await Promise.all(Array.from({ length: totalRuns }).fill(0).map(throttled));
   const duration = Date.now() - start;
-  assert(duration > totalTime - interval);
-  assert(duration < totalTime + interval);
+  assert(duration >= totalTime - interval);
+  assert(duration <= totalTime + interval);
 });
 
 Deno.test('throttle.abort', async () => {

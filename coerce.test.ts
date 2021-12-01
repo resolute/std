@@ -173,6 +173,7 @@ Deno.test('array', () => {
   ]);
   equals(coerce(arrayify)(true), [true]);
   equals(coerce(arrayify)(undefined), [undefined]);
+  equals(coerce(arrayify)(undefined).filter(is(defined)), []);
   // WeakSet non-iterable, so it gets wrapped in array
   const weakSet = new WeakSet();
   equals(coerce(arrayify)(weakSet), [weakSet]);
