@@ -1,14 +1,14 @@
-import { assert, equals, throwsAsync } from './deps.test.ts';
+import { assert, strict, throwsAsync } from './deps.test.ts';
 
 import { debounce, once, retry, sleep, throttle } from './control.ts';
 
 Deno.test('once', () => {
   let value = 0;
   const incr = (by = 1) => value += by;
-  equals(once(incr)(5), 5);
-  equals(once(incr)(1), 5); // not 6
-  equals(incr(), 6); // oh, sure, without once(), ok 6
-  equals(once(incr)(), 5); // not 6
+  strict(once(incr)(5), 5);
+  strict(once(incr)(1), 5); // not 6
+  strict(incr(), 6); // oh, sure, without once(), ok 6
+  strict(once(incr)(), 5); // not 6
 });
 
 const fauxFail = (passOnRun = 3) => {
@@ -23,7 +23,7 @@ const fauxFail = (passOnRun = 3) => {
 };
 
 Deno.test('retry:pass', async () => {
-  equals(await retry(fauxFail(3))('foo'), 'foo');
+  strict(await retry(fauxFail(3))('foo'), 'foo');
 });
 
 Deno.test('retry:fail', async () => {
@@ -46,7 +46,7 @@ Deno.test('debounce', async () => {
   await sleep(10);
   debounced(1);
   await sleep(50);
-  equals(state, 1);
+  strict(state, 1);
 });
 
 Deno.test('throttle', async () => {
