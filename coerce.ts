@@ -73,7 +73,10 @@ export const wrapError = (wrapper = TypeError) =>
     if (is(instance(Error))(value)) {
       return wrapper(value.message);
     }
-    return wrapper(value);
+    if (is(string)(value)) {
+      return wrapper(value);
+    }
+    throw makeError(value, `string, Error, or ${wrapper.name}`);
   };
 
 /**
