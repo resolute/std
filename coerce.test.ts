@@ -305,10 +305,15 @@ Deno.test('date', () => {
   throws(() => coerce(date)(new Date(0)));
   throws(() => coerce(dateify)(undefined!));
   equals(coerce(dateify)(1628623372929), new Date(1628623372929));
-  strict(is(future)(new Date(Date.now() + 1)), true);
+  // WARNING: do not use +1 when checking for future. It is possible that
+  // `Date.now() + 1` will be the same as `Date.now()` when `future` is
+  // executed. Use + 2 when testing for future.
+  strict(is(future)(new Date(Date.now() + 2)), true);
   strict(is(past)(new Date(Date.now() - 1)), true);
   throws(() => coerce(future)(new Date(Date.now() - 1)));
   throws(() => coerce(past)(new Date(Date.now() + 1)));
+  throws(() => coerce(future)(new Date(Date.now())));
+  throws(() => coerce(past)(new Date(Date.now())));
 });
 
 // a default/backup value
