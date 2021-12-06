@@ -42,11 +42,26 @@ import {
   stringify,
   trim,
   within,
+  wrapError,
   zero,
 } from './coerce.ts';
 
+Deno.test('wrapError', () => {
+  const sampleTypeError = new TypeError('foo');
+  strict(wrapError()(sampleTypeError), sampleTypeError);
+  strict(wrapError(Error)(sampleTypeError), sampleTypeError);
+  equals(wrapError(SyntaxError)(sampleTypeError), new SyntaxError(sampleTypeError.message));
+  equals(wrapError()('foo'), new TypeError('foo'));
+  equals(wrapError(SyntaxError)('foo'), new SyntaxError('foo'));
+  throws(()=> wrapError()(null as unknown as string));  
+})
+
 Deno.test('is', () => {
   strict(is(number)(1), true);
+});
+
+Deno.test('not', () => {
+  strict(not(number)('1'), true);
 });
 
 Deno.test('string', () => {
