@@ -26,6 +26,7 @@ import {
   number,
   numeric,
   object,
+  own,
   pairs,
   past,
   phone,
@@ -53,8 +54,8 @@ Deno.test('wrapError', () => {
   equals(wrapError(SyntaxError)(sampleTypeError), new SyntaxError(sampleTypeError.message));
   equals(wrapError()('foo'), new TypeError('foo'));
   equals(wrapError(SyntaxError)('foo'), new SyntaxError('foo'));
-  throws(()=> wrapError()(null as unknown as string));  
-})
+  throws(() => wrapError()(null as unknown as string));
+});
 
 Deno.test('is', () => {
   strict(is(number)(1), true);
@@ -253,6 +254,26 @@ Deno.test('instance', () => {
   throws(() =>
     coerce(instance({ foo: 'bar' } as unknown as new () => Record<string, never>))(new Date(4))
   );
+});
+
+Deno.test('own', () => {
+  const foo = { foo: 'foo' };
+  const bar = { bar: 'bar' };
+  throws(() => own('foo')({} as unknown as typeof foo));
+  strict(own('foo')(foo), foo);
+  throws(() => own('foo')(bar as unknown as typeof foo));
+  equals(own('foo')({ foo: new Date(1) }), { foo: new Date(1) });
+  equals(own('message')(new Error('foo')), new Error('foo'));
+  throws(() => own('message')(new Date(1) as unknown as Error));
+  strict(coerce(object, own('foo'))(foo), foo);
+  throws(() => coerce(object, own('foo'))(bar));
+  throws(() => coerce(object, is(own('foo')))(bar));
+  strict(coerce(own('foo'))(foo), foo);
+  throws(() => coerce(own('foo'))(bar));
+  strict(coerce(is(own('foo')))(foo), foo);
+  throws(() => coerce(is(own('foo')))(bar));
+  throws(() => coerce(not(own('foo')))(foo));
+  strict(coerce(not(own('foo')))(bar), bar);
 });
 
 Deno.test('limit', () => {

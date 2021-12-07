@@ -1,5 +1,5 @@
 // @ts-ignore tsc non-sense
-import { is, makeError, string, within } from './coerce.ts';
+import { is, string, within } from './coerce.ts';
 
 export type MimeTypes = keyof typeof mimeDatabase;
 
@@ -36,7 +36,7 @@ const check = <T>(regex: RegExp, keys: readonly T[], message: string) =>
     if (is(within(keys))(cleaned)) {
       return cleaned;
     }
-    throw makeError(input, message);
+    throw new TypeError(`Expected “${input}” to be ${message}.`);
   };
 
 /**

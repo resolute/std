@@ -27,7 +27,10 @@ export const is = <A extends UnaryFunction>(coercer: A) => {
       return false;
     }
   };
-  (guard as Is<A>)[SymbolGuardTest] = true;
+  (guard as Is<A>)[SymbolGuardTest] = <T extends ReturnType<A>>(value: T) => {
+    coercer(value);
+    return value;
+  };
   return guard as Is<A>;
 };
 
@@ -46,7 +49,14 @@ export const is = <A extends UnaryFunction>(coercer: A) => {
  */
 export const not = <A extends UnaryFunction>(coercer: A) => {
   const guard = <T>(value: T): value is T extends ReturnType<A> ? never : T => !is(coercer)(value);
-  (guard as Not<A>)[SymbolGuardTest] = true;
+  (guard as Not<A>)[SymbolGuardTest] = <T>(value: T) => {
+    try {
+      coercer(value);
+    } catch {
+      return value as T extends ReturnType<A> ? never : T;
+    }
+    throw makeError(value, `something else`);
+  };
   return guard as Not<A>;
 };
 
@@ -56,28 +66,8 @@ export const not = <A extends UnaryFunction>(coercer: A) => {
  * @param expected value
  * @returns TypeError
  */
-export const makeError = (actual: any, expected: string) =>
+const makeError = (actual: any, expected: string) =>
   new TypeError(`Expected “${actual}” to be ${expected}.`);
-
-/**
- * Gracefully wrap errors or strings with an Error wrapper. Prevents
- * double-wrapping errors.
- * @param wrapper Error constructor used to wrap
- * @returns wrapper
- */
-export const wrapError = (wrapper = TypeError) =>
-  (value: Error | string) => {
-    if (is(instance(wrapper))(value)) {
-      return value;
-    }
-    if (is(instance(Error))(value)) {
-      return wrapper(value.message);
-    }
-    if (is(string)(value)) {
-      return wrapper(value);
-    }
-    throw makeError(value, `string, Error, or ${wrapper.name}`);
-  };
 
 /**
  * 1. throw Error; or
@@ -130,13 +120,8 @@ const params = <T, E>(args: [T] | [T, E]) => {
 const guardInPipe = <T extends Is<R> | UnaryFunction, R extends UnaryFunction>(
   coercer: T,
 ) => {
-  if (Object.hasOwn(coercer, SymbolGuardTest)) {
-    return (value: any) => {
-      if (coercer(value) === true) {
-        return value;
-      }
-      throw makeError(value, 'something else');
-    };
+  if (is(own(SymbolGuardTest))(coercer)) {
+    return coercer[SymbolGuardTest];
   }
   return coercer;
 };
@@ -303,6 +288,14 @@ export const instance = <T extends (new (...args: any[]) => any)>(constructor: T
       return value as InstanceType<T>;
     }
     throw makeError(value, `an instance of ${constructor}`);
+  };
+
+export const own = <K extends string | number | symbol>(property: K) =>
+  <T extends { [Property in K]: any }>(value: T) => {
+    if (Object.prototype.hasOwnProperty.call(value, property)) {
+      return value;
+    }
+    throw makeError(value, `an object with own “${String(property)}” property`);
   };
 //#endregion
 
@@ -508,10 +501,6 @@ export const dateify = <T extends number | string | Date>(value: T) =>
  * @returns boolean
  */
 export const boolean = <Truthy = true, Falsy = false, Nully = Falsy, Undefy = Nully>(
-  // truthy: Truthy = true as any,
-  // falsy: Falsy = false as any,
-  // nully: Nully = falsy as any,
-  // undefy: Undefy = nully as any,
   ...args:
     | readonly []
     | readonly [truthy: Truthy]
@@ -607,6 +596,27 @@ export const pairs = <T extends Iterable<[K, V]>, K, V>(value: T) =>
   entries(value)
     .map(limit(2) as (value: [K, V]) => [K, V])
     .filter(is(length(2)));
+
+/**
+ * Gracefully wrap errors or strings with an Error wrapper. Prevents
+ * double-wrapping errors.
+ * @param wrapper Error constructor used to wrap
+ * @returns wrapper
+ * @throws if value is not a string or instanceof Error
+ */
+export const wrapError = (wrapper = TypeError) =>
+  (value: Error | string) => {
+    if (is(instance(wrapper))(value)) {
+      return value;
+    }
+    if (is(instance(Error))(value)) {
+      return wrapper(value.message);
+    }
+    if (is(string)(value)) {
+      return wrapper(value);
+    }
+    throw makeError(value, `string, Error, or ${wrapper.name}`);
+  };
 
 /**
  * Round to integer
@@ -903,14 +913,13 @@ export interface Entries {
   ): I[] | [K, V][];
 }
 
-export interface GuardTest {
-  [SymbolGuardTest]: true;
-}
-export interface Is<A extends UnaryFunction> extends GuardTest {
+export interface Is<A extends UnaryFunction> {
   (value: unknown): value is ReturnType<A>;
+  [SymbolGuardTest]: <T extends ReturnType<A>>(value: T) => T;
 }
-export interface Not<A extends UnaryFunction> extends GuardTest {
+export interface Not<A extends UnaryFunction> {
   <T>(value: T): value is T extends ReturnType<A> ? never : T;
+  [SymbolGuardTest]: <T>(value: T) => T extends ReturnType<A> ? never : T;
 }
 
 export type PipeReturnType<T extends UnaryFunction> = T extends Is<infer R> ? ReturnType<R>
