@@ -15,10 +15,6 @@
     }
   },
   "fmt": {
-    "files": {
-      "include": ["**/*.ts", "**/*.js", "**/*.cjs"],
-      "exclude": ["node_modules"]
-    },
     "options": {
       "useTabs": false,
       "lineWidth": 100,

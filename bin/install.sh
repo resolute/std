@@ -28,4 +28,5 @@ command -v genhtml >/dev/null 2>&1 || {
 command -v esbuild >/dev/null 2>&1 || {
   echo >&2 "esbuild not installed.";
   echo >&2 "npm i -g esbuild"
+  npm i -g esbuild
 }
