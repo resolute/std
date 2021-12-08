@@ -332,9 +332,7 @@ Deno.test('date', () => {
   strict(is(future)(new Date(Date.now() + 2)), true);
   strict(is(past)(new Date(Date.now() - 1)), true);
   throws(() => coerce(future)(new Date(Date.now() - 1)));
-  throws(() => coerce(past)(new Date(Date.now() + 1)));
-  throws(() => coerce(future)(new Date(Date.now())));
-  throws(() => coerce(past)(new Date(Date.now())));
+  throws(() => coerce(past)(new Date(Date.now() + 2)));
 });
 
 // a default/backup value
