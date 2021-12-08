@@ -112,11 +112,12 @@ export const contentTypeCategory = (list: ReturnType<typeof categorizeContentTyp
  * Compound validation of a request that is method:POST and contains JSON or
  * form data.
  */
-export const isFormOrJsonPostRequest = coerce(
-  instance(Request),
-  method(['POST']),
-  contentTypeCategory(['json', 'form']),
-);
+export const isFormOrJsonPostRequest = (value: Request) =>
+  coerce(
+    instance(Request),
+    method(['POST']),
+    contentTypeCategory(['json', 'form']),
+  )(value);
 
 /**
  * Respond to client with JSON
