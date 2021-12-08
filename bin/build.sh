@@ -13,7 +13,7 @@ process() {
   echo $CJS
   sed 's/\.ts//' "$TS" | esbuild --loader=ts --format=cjs --target=node16 > "$CJS"
   echo $MJS
-  sed 's/\.ts//' "$TS" | esbuild --loader=ts --format=esm --target=esnext > "$MJS"
+  sed 's/\.ts/.js/' "$TS" | esbuild --loader=ts --format=esm --target=esnext > "$MJS"
 }
 
 export -f process
