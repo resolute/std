@@ -16,27 +16,30 @@ const removeElements = (elements: HTMLElement[]) => {
   }
 };
 
-export default (
+export default <T extends (fromClickEvent: boolean) => Promise<any>>(
   name: string,
-  actual: (fromClickEvent: boolean) => Promise<any>,
+  actual: T,
   facadeDomString: string,
 ) => {
   const elements = htmlToElements(facadeDomString);
   const element = elements[elements.length - 1]!;
-  const loadActual = (fromClickEvent: boolean) =>
-    actual(fromClickEvent)
+  const loadActual = (fromClickEvent: boolean) => {
+    if (fromClickEvent) {
+      element.classList.add('loading');
+      sessionStorage.setItem(name, '1');
+    }
+    return actual(fromClickEvent)
       .finally(() => {
         setTimeout(removeElements, 0, elements);
       });
-
+  };
   if (sessionStorage.getItem(name)) {
     loadActual(false);
   } else {
     element.addEventListener('click', () => {
-      element.classList.add('loading');
-      sessionStorage.setItem(name, '1');
       loadActual(true);
     }, { once: true });
     appendElements(elements);
   }
+  return loadActual;
 };
