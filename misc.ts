@@ -26,9 +26,18 @@ export type MapKeys<A, B> = {
   [K in keyof A as A[K] extends string ? A[K] : never]: K extends keyof B ? B[K] : never;
 };
 
-export const properName = coerce(string, spaces, trim, quotes, proper, not(length(0)), limit(100));
+export const properName = coerce(
+  string,
+  spaces,
+  trim,
+  quotes,
+  proper,
+  not(length(0)),
+  limit(100),
+  string,
+);
 
-export const cleanEmail = coerce(string, email, limit(100));
+export const cleanEmail = coerce(string, email, limit(100), string);
 
 export const cleanPhone = coerce(string, prettyPhone);
 
