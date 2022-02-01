@@ -8,6 +8,7 @@ import {
   date,
   dateify,
   defined,
+  digits,
   email,
   entries,
   func,
@@ -26,6 +27,7 @@ import {
   number,
   numeric,
   object,
+  or,
   own,
   pairs,
   past,
@@ -49,12 +51,14 @@ import {
 
 Deno.test('wrapError', () => {
   const sampleTypeError = new TypeError('foo');
+  const invalidErrorConstructor = ((arg: string) => new Error(arg)) as unknown as ErrorConstructor;
   strict(wrapError()(sampleTypeError), sampleTypeError);
   strict(wrapError(Error)(sampleTypeError), sampleTypeError);
   equals(wrapError(SyntaxError)(sampleTypeError), new SyntaxError(sampleTypeError.message));
-  equals(wrapError()('foo'), new TypeError('foo'));
+  equals(wrapError()('foo'), new Error('foo'));
   equals(wrapError(SyntaxError)('foo'), new SyntaxError('foo'));
   throws(() => wrapError()(null as unknown as string));
+  throws(() => wrapError(invalidErrorConstructor)('foo'));
 });
 
 Deno.test('is', () => {
@@ -259,12 +263,12 @@ Deno.test('instance', () => {
 Deno.test('own', () => {
   const foo = { foo: 'foo' };
   const bar = { bar: 'bar' };
-  throws(() => own('foo')({} as unknown as typeof foo));
+  throws(() => own('foo')({}));
   strict(own('foo')(foo), foo);
-  throws(() => own('foo')(bar as unknown as typeof foo));
+  throws(() => own('foo')(bar));
   equals(own('foo')({ foo: new Date(1) }), { foo: new Date(1) });
   equals(own('message')(new Error('foo')), new Error('foo'));
-  throws(() => own('message')(new Date(1) as unknown as Error));
+  throws(() => own('message')(new Date(1)));
   strict(coerce(object, own('foo'))(foo), foo);
   throws(() => coerce(object, own('foo'))(bar));
   throws(() => coerce(object, is(own('foo')))(bar));
@@ -295,6 +299,7 @@ Deno.test('length', () => {
 Deno.test('split', () => {
   equals(coerce(split())('a,b,,,c d e foo'), ['a', 'b', 'c', 'd', 'e', 'foo']);
   equals(coerce(split())(',,,,,,   , , '), []);
+  equals(coerce(split())('1\n2\r3'), ['1', '2', '3']);
 });
 
 Deno.test('within', () => {
@@ -335,25 +340,27 @@ Deno.test('date', () => {
   throws(() => coerce(past)(new Date(Date.now() + 2)));
 });
 
+Deno.test('chain/nest', () => {
+  const trimNonEmpty = coerce(string, trim, nonempty);
+  const trimNonEmptyOrNull = coerce(string, trim, nonempty, or(null));
+  strict(coerce(trimNonEmpty)('a'), 'a');
+  strict(coerce(trimNonEmpty, string, digits)('a'), '');
+  strict(coerce(trimNonEmpty, or(null))(' '), null);
+  strict(coerce(trimNonEmptyOrNull)(' '), null);
+});
+
 // a default/backup value
-Deno.test('coerce(…)(…, 0)', () => {
+Deno.test('coerce(…, or(undefined))(…)', () => {
   const defaultValue = undefined;
-  strict(coerce(number)('foo', defaultValue), defaultValue);
+  strict(coerce(number, or(defaultValue))('foo'), defaultValue);
 });
 
 // throw specific Error instance
-Deno.test('coerce(…)(…, new Error(…)))', () => {
+Deno.test('coerce(…, or(new Error()))(…)', () => {
   const predefinedError = new Error('this is my error, there are many like it…');
   try {
-    coerce(number)('foo', predefinedError);
+    coerce(number, or(predefinedError))('foo');
   } catch (error) {
     strict(error, predefinedError);
   }
-});
-
-// Error function factory
-Deno.test('coerce(…)(…, () => CustomError))', () => {
-  class CustomError extends Error {}
-  const errorHandler = (error: Error) => new CustomError(error.message);
-  throws(() => coerce(number)('foo', errorHandler), CustomError);
 });

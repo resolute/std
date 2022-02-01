@@ -1,9 +1,64 @@
-// deno-lint-ignore-file no-explicit-any
-
 //#region Coerce
 // -----------------------------------------------------------------------------
 
 const SymbolGuardTest = Symbol('GuardTest');
+const SymbolOtherwise = Symbol('Otherwise');
+
+/**
+ * Chain a set of coercing functions.
+ * @example
+ * ```ts
+ * import { to, string } from '@resolute/std/coerce';
+ * const mustBeString = to(string);
+ * mustBeString('foo'); // 'foo'
+ * mustBeString(1); // throws TypeError
+ * ```
+ * @param coercers unary guards, sanitizers, mutators
+ * @returns pipeline of coercers
+ */
+export const to: Coerce = (...coercers: UnaryFunction[]) => {
+  const coercerLengthMinusOne = coercers.length - 1;
+  const lastCoercer = coercers[coercerLengthMinusOne];
+  if (not(own(SymbolOtherwise))(lastCoercer)) {
+    return pipe(...coercers);
+  }
+  return <T>(value: T) => {
+    const { value: otherwise } = lastCoercer;
+    const revised = coercers.slice(0, coercerLengthMinusOne);
+    try {
+      return pipe(...revised)(value);
+    } catch (error) {
+      if (is(instance(Error))(otherwise)) {
+        throw otherwise;
+      }
+      return otherwise;
+    }
+  };
+};
+
+/**
+ * Alias `to`
+ * @see to
+ */
+export const coerce = to;
+
+/**
+ * Provide a backup value to be used when coercion fails. If `value` is an
+ * `instanceof Error`, then that error will be `throw`n. Any other `value` will
+ * be returned as-is.
+ * @example
+ * ```ts
+ * import { or, to, string } from '@resolute/std/coerce';
+ * to(string, or(null))('foo'); // 'foo'
+ * to(string, or(null))(1); // 1
+ * ```
+ * @param value backup value if any coercers fail
+ * @returns backup value to be used in `to` chain
+ */
+export const or = <Y>(value: NonFunction<Y>) => ({
+  value,
+  [SymbolOtherwise]: true,
+});
 
 /**
  * Type guard test. Use with any type guard or mutating function that `throw`s
@@ -70,46 +125,10 @@ const makeError = (actual: any, expected: string) =>
   new TypeError(`Expected “${actual}” to be ${expected}.`);
 
 /**
- * 1. throw Error; or
- * 2. throw error function factory; or
- * 3. return the `otherwise` value
- */
-const failure = <U>(error: Error, otherwise: U) => {
-  if (is(func)(otherwise)) {
-    throw otherwise(error);
-  }
-  if (is(instance(Error))(otherwise)) {
-    throw otherwise;
-  }
-  // deno-lint-ignore ban-types
-  return otherwise as Exclude<U, Error | Function>;
-};
-
-/**
  * Create a pipe of unary functions
  */
-// TODO(@adamchal): this is not really a Coerce. It should be a Pipe, which is
-// the same as Coerce except for the second overload of CoerceResult. Avoided
-// duplicating the Coerce interface for now, but if this is to be exported
-// later, the Coerce interface will need to be duplicated and the return types
-// would be PipeResult<…> instead of CoerceResult<…>.
-const pipe: Coerce = (...fns: UnaryFunction[]) =>
-  fns.reduce.bind(fns, (value, fn) => fn(value)) as UnaryFunction;
-
-/**
- * Handles issues where passing otherwise: undefined triggers the default
- * TypeError value. This workaround determines if the default otherwise:
- * TypeError should be used based on the argument count passed to the function.
- * This is instead of simply using a default parameter value, which would not
- * work in the case where undefined is passed.
- */
-const params = <T, E>(args: [T] | [T, E]) => {
-  if (args.length === 1) {
-    return [args[0] as T, wrapError(TypeError)] as const;
-  }
-  // deno-lint-ignore ban-types
-  return args as [T, Exclude<E, Error | Function>];
-};
+const pipe: To = (...fns: UnaryFunction[]) =>
+  fns.reduce.bind(fns.map(guardInPipe), (value, fn) => fn(value)) as UnaryFunction;
 
 /**
  * Since type guard functions return boolean, we need to wrap them when they are
@@ -125,29 +144,6 @@ const guardInPipe = <T extends Is<R> | UnaryFunction, R extends UnaryFunction>(
   }
   return coercer;
 };
-
-/**
- * Coerce input to specific types and formats.
- * `coerce(...coercers)(value[, backup])`
- * @example
- * ```ts
- * import { coerce, string, trim, not, length } from '@resolute/std/coerce';
- * coerce(string, trim, not(length(0)))(' foo '); // 'foo'
- * coerce(string, trim, not(length(0)))(' '); // TypeError
- * coerce(string, trim, not(length(0)))(' ', undefined); // undefined
- * ```
- */
-export const coerce: Coerce = <A, Z>(...coercers: ((a: A) => Z)[]): Coercer<A, Z> =>
-  <T, E>(...args: [T] | [T, E]) => {
-    const [value, otherwise] = params(args);
-    try {
-      return pipe(...coercers.map(guardInPipe))(value);
-    } catch (error) {
-      return failure(error as Error, otherwise);
-    }
-  };
-
-export const to = coerce;
 //#endregion
 
 //#region Guards
@@ -200,13 +196,12 @@ export const bigint = <T>(value: T) => {
  */
 export const date = <T>(value: T) => {
   try {
-    const valid = coerce(object, instance(Date))(value);
-    coerce(finite, not(zero))(valid.valueOf());
+    const valid = to(object, instance(Date))(value);
+    to(finite, nonzero)(valid.valueOf());
     return valid;
   } catch {
-    // ignore
+    throw makeError(value, 'a date');
   }
-  throw makeError(value, 'a date');
 };
 
 /**
@@ -282,7 +277,7 @@ export const func = <T>(value: T) => {
  * @returns value
  * @throws if value is not `instanceof …`
  */
-export const instance = <T extends (new (...args: any[]) => any)>(constructor: T) =>
+export const instance = <T extends Constructor>(constructor: T) =>
   (value: unknown) => {
     if (is(func)(constructor) && value instanceof constructor) {
       return value as InstanceType<T>;
@@ -291,9 +286,9 @@ export const instance = <T extends (new (...args: any[]) => any)>(constructor: T
   };
 
 export const own = <K extends string | number | symbol>(property: K) =>
-  <T extends { [Property in K]: any }>(value: T) => {
+  <T>(value: T) => {
     if (Object.prototype.hasOwnProperty.call(value, property)) {
-      return value;
+      return value as T & { [Property in K]: any };
     }
     throw makeError(value, `an object with own “${String(property)}” property`);
   };
@@ -308,12 +303,9 @@ export const own = <K extends string | number | symbol>(property: K) =>
  * @returns value
  * @throws if value is not finite
  */
-export const finite = <T>(value: T) => {
-  if (typeof value === 'number' && Number.isFinite(value)) {
-    return value;
-  }
-  throw makeError(value, 'representable as a string');
-};
+export const finite =
+  // to(number, or(new TypeError('Expected a finite number.')));
+  <T>(value: T) => to(number, or(makeError(value, 'a finite number.')))(value);
 
 /**
  * Number is 0
@@ -329,17 +321,26 @@ export const zero = <T extends number>(value: T) => {
 };
 
 /**
+ * Alias `not(zero)`
+ * @see zero
+ */
+export const nonzero = not(zero);
+
+/**
  * Number > 0
  * @param value number
  * @returns value
  * @throws if value <= 0
  */
-export const positive = coerce(not(zero), (value: number) => {
-  if (value > 0) {
-    return value;
-  }
-  throw makeError(value, 'a positive number');
-});
+export const positive = to(
+  nonzero,
+  (value: number) => {
+    if (value > 0) {
+      return value;
+    }
+    throw makeError(value, 'a positive number');
+  },
+);
 
 /**
  * Number < 0
@@ -348,7 +349,11 @@ export const positive = coerce(not(zero), (value: number) => {
  * @throws if value >= 0
  */
 export const negative = (value: number) =>
-  coerce(not(zero), not(positive))(value, makeError(value, 'a negative number'));
+  to(
+    nonzero,
+    not(positive),
+    or(makeError(value, 'a negative number')),
+  )(value);
 
 /**
  * Date is in the future
@@ -396,6 +401,13 @@ export const length = <N extends number>(size: N) =>
   };
 
 /**
+ * Alias `not(length(0))`
+ * @see length
+ */
+// `not` kind of messes up the types here. Explicit type definition used:
+export const nonempty = not(length(0)) as <T extends { length: number }>(value: T) => T;
+
+/**
  * `value` is within `list` (a.k.a. Enum)
  */
 export const within = <T>(list: readonly T[]) =>
@@ -432,18 +444,6 @@ export const luhn = (value: string) => {
   }
   throw makeError(value, 'able to pass the Luhn test');
 };
-
-/**
- * Alias `not(length(0))`
- * @see length
- */
-export const nonempty = not(length(0));
-
-/**
- * Alias `not(zero)`
- * @see zero
- */
-export const nonzero = not(zero);
 //#endregion
 
 //#region Mutators
@@ -455,7 +455,7 @@ export const nonzero = not(zero);
  * @returns string
  * @throws if value cannot be mutated to `string`
  */
-export const stringify = <T extends string | number | bigint>(value: T) => {
+export const stringify = <T extends string | number | bigint | { length: number }>(value: T) => {
   if (is(finite)(value) || is(bigint)(value)) {
     return value.toString();
   }
@@ -468,19 +468,17 @@ export const stringify = <T extends string | number | bigint>(value: T) => {
  * @returns number
  * @throws if value cannot be mutated to `number`
  */
-export const numeric = <T extends string | number | bigint>(value: T) => {
+export const numeric = <T extends string | number | bigint | { length: number }>(value: T) => {
   if (is(finite)(value)) {
     return value;
   }
-  try {
-    const stringValue = stringify(value).replace(/[^0-9oex.-]/g, '');
-    if (not(length(0))(stringValue)) {
-      return finite(Number(stringValue));
-    }
-  } catch {
-    // nothing to report here, we failed
-  }
-  throw makeError(value, 'numeric');
+  return to(
+    stringify,
+    (value: string) => value.replace(/[^0-9oex.-]/g, ''),
+    nonempty,
+    (value: string) => finite(Number(value)),
+    or(makeError(value, 'numeric')),
+  )(value);
 };
 
 /**
@@ -490,7 +488,7 @@ export const numeric = <T extends string | number | bigint>(value: T) => {
  * @throws if value cannot be mutated to `Date`
  */
 export const dateify = <T extends number | string | Date>(value: T) =>
-  coerce(date)(new Date(value), makeError(value, 'transformable to a Date'));
+  to(date, or(makeError(value, 'a date')))(new Date(value));
 
 /**
  * `boolean` Mutator
@@ -604,18 +602,19 @@ export const pairs = <T extends Iterable<[K, V]>, K, V>(value: T) =>
  * @returns wrapper
  * @throws if value is not a string or instanceof Error
  */
-export const wrapError = (wrapper = TypeError) =>
+export const wrapError: WrapError = (wrapper?: ErrorConstructor) =>
   (value: Error | string) => {
-    if (is(instance(wrapper))(value)) {
+    const wrap = wrapper ?? Error;
+    if (is(instance(wrap))(value)) {
       return value;
     }
     if (is(instance(Error))(value)) {
-      return wrapper(value.message);
+      return new wrap(value.message);
     }
     if (is(string)(value)) {
-      return wrapper(value);
+      return new wrap(value);
     }
-    throw makeError(value, `string, Error, or ${wrapper.name}`);
+    throw makeError(value, `string, Error, or ${wrap.name}`);
   };
 
 /**
@@ -771,9 +770,9 @@ export const proper = (value: string) =>
  * @returns string
  * @throws if value does not resemble an email
  */
-export const email = coerce(
+export const email = to(
   (value: string) => value.toLowerCase().replace(/\s+/g, ''),
-  not(length(0)),
+  nonempty,
   (value: string) => {
     if (/[a-z0-9]@[a-z0-9]/.test(value)) {
       return value;
@@ -839,10 +838,13 @@ export const prettyPhone = (value: string) => {
  * @throws if value does not contain 5 digits
  */
 export const postalCodeUs5 = (value: string) =>
-  coerce(digits, limit(5), length(5))(
-    value,
-    makeError(value, 'a valid US postal code'),
-  );
+  to(
+    digits,
+    limit(5),
+    string,
+    length(5),
+    or(makeError(value, 'a valid US postal code')),
+  )(value);
 
 /**
  * Limit the value of a `number`, characters in a `string`, or items in an
@@ -891,19 +893,30 @@ export const split = (separator = /[,\r\n\s]+/g, limit?: number) =>
    * @throws if value is not a string
    */
   (value: string) =>
-    spaces(value) // remove irregular spaces
-      .split(separator, limit)
+    value.split(separator, limit)
+      .map(spaces) // remove irregular spaces
       .map(trim)
-      .filter(not(length(0)));
+      .filter(nonempty);
 
 //#endregion
 
 //#region Types
 // -----------------------------------------------------------------------------
 
+export type Constructor = new (...args: any[]) => any;
+
 export type UnaryFunction<P = any, R = any> = (value: P) => R;
 
 export type IterableOrNot<T> = T extends Iterable<infer U> ? U : T;
+
+export type NonFunction<T> = T extends (Function | ErrorConstructor | (new (...args: any[]) => any))
+  ? never
+  : T;
+
+export interface WrapError {
+  (): (value: Error | string) => Error;
+  <T extends Constructor>(value: T): (value: Error | string) => InstanceType<T>;
+}
 
 export interface Entries {
   <T>(value: Iterable<T>): T[];
@@ -917,75 +930,83 @@ export interface Is<A extends UnaryFunction> {
   (value: unknown): value is ReturnType<A>;
   [SymbolGuardTest]: <T extends ReturnType<A>>(value: T) => T;
 }
+
 export interface Not<A extends UnaryFunction> {
   <T>(value: T): value is T extends ReturnType<A> ? never : T;
   [SymbolGuardTest]: <T>(value: T) => T extends ReturnType<A> ? never : T;
 }
 
-export type PipeReturnType<T extends UnaryFunction> = T extends Is<infer R> ? ReturnType<R>
+export type UnaryReturnType<T extends UnaryFunction> = T extends Is<infer R> ? ReturnType<R>
   : (T extends Not<infer S> ? ReturnType<S> : ReturnType<T>);
 
-export interface PipeResult<I, O> {
+export type UnaryExtends<A extends UnaryFunction, B extends UnaryFunction> =
+  UnaryReturnType<A> extends UnaryReturnType<B> ? UnaryReturnType<A>
+    : UnaryReturnType<B>;
+
+export interface Otherwise<T> {
+  value: T;
+  [SymbolOtherwise]: boolean;
+}
+
+export interface ToResult<I, O> {
   <Input>(value: Input): Input extends I ? (Input extends O ? Input : O) : never;
 }
 
-export interface Coercer<I, O> extends PipeResult<I, O> {
-  <Input, E>(
+export interface OrResult<I, O, Y> {
+  <Input>(
     value: Input,
-    otherwise: E,
-    // deno-lint-ignore ban-types
-  ): (Input extends I ? (Input extends O ? Input : O) : never) | Exclude<E, Error | Function>;
+  ): (Input extends I ? (Input extends O ? Input : O) : never) | Exclude<Y, Error>;
 }
 
-export interface Coerce {
+export interface To {
   (): <I>(value: I) => I;
   <A extends UnaryFunction>(
     a: A,
-  ): Coercer<Parameters<A>[0], PipeReturnType<A>>;
-  <A extends UnaryFunction, B extends (value: PipeReturnType<A>) => any>(
+  ): ToResult<Parameters<A>[0], UnaryReturnType<A>>;
+  <A extends UnaryFunction, B extends (value: UnaryReturnType<A>) => any>(
     a: A,
     b: B,
-  ): Coercer<Parameters<A>[0], PipeReturnType<B>>;
+  ): ToResult<Parameters<A>[0], UnaryReturnType<B>>;
   <
     A extends UnaryFunction,
-    B extends (value: PipeReturnType<A>) => any,
-    C extends (value: PipeReturnType<B>) => any,
+    B extends (value: UnaryReturnType<A>) => any,
+    C extends (value: UnaryExtends<A, B>) => any,
   >(
     a: A,
     b: B,
     c: C,
-  ): Coercer<Parameters<A>[0], PipeReturnType<C>>;
+  ): ToResult<Parameters<A>[0], UnaryReturnType<C>>;
   <
     A extends UnaryFunction,
-    B extends (value: PipeReturnType<A>) => any,
-    C extends (value: PipeReturnType<B>) => any,
-    D extends (value: PipeReturnType<C>) => any,
+    B extends (value: UnaryReturnType<A>) => any,
+    C extends (value: UnaryExtends<A, B>) => any,
+    D extends (value: UnaryExtends<B, C>) => any,
   >(
     a: A,
     b: B,
     c: C,
     d: D,
-  ): Coercer<Parameters<A>[0], PipeReturnType<D>>;
+  ): ToResult<Parameters<A>[0], UnaryReturnType<D>>;
   <
     A extends UnaryFunction,
-    B extends (value: PipeReturnType<A>) => any,
-    C extends (value: PipeReturnType<B>) => any,
-    D extends (value: PipeReturnType<C>) => any,
-    E extends (value: PipeReturnType<D>) => any,
+    B extends (value: UnaryReturnType<A>) => any,
+    C extends (value: UnaryExtends<A, B>) => any,
+    D extends (value: UnaryExtends<B, C>) => any,
+    E extends (value: UnaryExtends<C, D>) => any,
   >(
     a: A,
     b: B,
     c: C,
     d: D,
     e: E,
-  ): Coercer<Parameters<A>[0], PipeReturnType<E>>;
+  ): ToResult<Parameters<A>[0], UnaryReturnType<E>>;
   <
     A extends UnaryFunction,
-    B extends (value: PipeReturnType<A>) => any,
-    C extends (value: PipeReturnType<B>) => any,
-    D extends (value: PipeReturnType<C>) => any,
-    E extends (value: PipeReturnType<D>) => any,
-    F extends (value: PipeReturnType<E>) => any,
+    B extends (value: UnaryReturnType<A>) => any,
+    C extends (value: UnaryExtends<A, B>) => any,
+    D extends (value: UnaryExtends<B, C>) => any,
+    E extends (value: UnaryExtends<C, D>) => any,
+    F extends (value: UnaryExtends<D, E>) => any,
   >(
     a: A,
     b: B,
@@ -993,15 +1014,15 @@ export interface Coerce {
     d: D,
     e: E,
     f: F,
-  ): Coercer<Parameters<A>[0], PipeReturnType<F>>;
+  ): ToResult<Parameters<A>[0], UnaryReturnType<F>>;
   <
     A extends UnaryFunction,
-    B extends (value: PipeReturnType<A>) => any,
-    C extends (value: PipeReturnType<B>) => any,
-    D extends (value: PipeReturnType<C>) => any,
-    E extends (value: PipeReturnType<D>) => any,
-    F extends (value: PipeReturnType<E>) => any,
-    G extends (value: PipeReturnType<F>) => any,
+    B extends (value: UnaryReturnType<A>) => any,
+    C extends (value: UnaryExtends<A, B>) => any,
+    D extends (value: UnaryExtends<B, C>) => any,
+    E extends (value: UnaryExtends<C, D>) => any,
+    F extends (value: UnaryExtends<D, E>) => any,
+    G extends (value: UnaryExtends<E, F>) => any,
   >(
     a: A,
     b: B,
@@ -1010,16 +1031,16 @@ export interface Coerce {
     e: E,
     f: F,
     g: G,
-  ): Coercer<Parameters<A>[0], PipeReturnType<G>>;
+  ): ToResult<Parameters<A>[0], UnaryReturnType<G>>;
   <
     A extends UnaryFunction,
-    B extends (value: PipeReturnType<A>) => any,
-    C extends (value: PipeReturnType<B>) => any,
-    D extends (value: PipeReturnType<C>) => any,
-    E extends (value: PipeReturnType<D>) => any,
-    F extends (value: PipeReturnType<E>) => any,
-    G extends (value: PipeReturnType<F>) => any,
-    H extends (value: PipeReturnType<G>) => any,
+    B extends (value: UnaryReturnType<A>) => any,
+    C extends (value: UnaryExtends<A, B>) => any,
+    D extends (value: UnaryExtends<B, C>) => any,
+    E extends (value: UnaryExtends<C, D>) => any,
+    F extends (value: UnaryExtends<D, E>) => any,
+    G extends (value: UnaryExtends<E, F>) => any,
+    H extends (value: UnaryExtends<F, G>) => any,
   >(
     a: A,
     b: B,
@@ -1029,11 +1050,122 @@ export interface Coerce {
     f: F,
     g: G,
     h: H,
-  ): Coercer<Parameters<A>[0], PipeReturnType<H>>;
+  ): ToResult<Parameters<A>[0], UnaryReturnType<H>>;
   <AZ extends UnaryFunction>(
     ...az: AZ[]
-  ): Coercer<Parameters<AZ>[0], PipeReturnType<AZ>>;
+  ): ToResult<Parameters<AZ>[0], UnaryReturnType<AZ>>;
+}
+
+export interface Coerce extends To {
+  <A extends UnaryFunction, B extends Otherwise<any>>(
+    a: A,
+    b: B,
+  ): OrResult<Parameters<A>[0], UnaryReturnType<A>, B['value']>;
+  <
+    A extends UnaryFunction,
+    B extends (value: UnaryReturnType<A>) => any,
+    C extends Otherwise<any>,
+  >(
+    a: A,
+    b: B,
+    c: C,
+  ): OrResult<Parameters<A>[0], UnaryReturnType<B>, C['value']>;
+  <
+    A extends UnaryFunction,
+    B extends (value: UnaryReturnType<A>) => any,
+    C extends (value: UnaryExtends<A, B>) => any,
+    D extends Otherwise<any>,
+  >(
+    a: A,
+    b: B,
+    c: C,
+    d: D,
+  ): OrResult<Parameters<A>[0], UnaryReturnType<C>, D['value']>;
+  <
+    A extends UnaryFunction,
+    B extends (value: UnaryReturnType<A>) => any,
+    C extends (value: UnaryExtends<A, B>) => any,
+    D extends (value: UnaryExtends<B, C>) => any,
+    E extends Otherwise<any>,
+  >(
+    a: A,
+    b: B,
+    c: C,
+    d: D,
+    e: E,
+  ): OrResult<Parameters<A>[0], UnaryReturnType<D>, E['value']>;
+  <
+    A extends UnaryFunction,
+    B extends (value: UnaryReturnType<A>) => any,
+    C extends (value: UnaryExtends<A, B>) => any,
+    D extends (value: UnaryExtends<B, C>) => any,
+    E extends (value: UnaryExtends<C, D>) => any,
+    F extends Otherwise<any>,
+  >(
+    a: A,
+    b: B,
+    c: C,
+    d: D,
+    e: E,
+    f: F,
+  ): OrResult<Parameters<A>[0], UnaryReturnType<E>, F['value']>;
+  <
+    A extends UnaryFunction,
+    B extends (value: UnaryReturnType<A>) => any,
+    C extends (value: UnaryExtends<A, B>) => any,
+    D extends (value: UnaryExtends<B, C>) => any,
+    E extends (value: UnaryExtends<C, D>) => any,
+    F extends (value: UnaryExtends<D, E>) => any,
+    G extends Otherwise<any>,
+  >(
+    a: A,
+    b: B,
+    c: C,
+    d: D,
+    e: E,
+    f: F,
+    g: G,
+  ): OrResult<Parameters<A>[0], UnaryReturnType<F>, G['value']>;
+  <
+    A extends UnaryFunction,
+    B extends (value: UnaryReturnType<A>) => any,
+    C extends (value: UnaryExtends<A, B>) => any,
+    D extends (value: UnaryExtends<B, C>) => any,
+    E extends (value: UnaryExtends<C, D>) => any,
+    F extends (value: UnaryExtends<D, E>) => any,
+    G extends (value: UnaryExtends<E, F>) => any,
+    H extends Otherwise<any>,
+  >(
+    a: A,
+    b: B,
+    c: C,
+    d: D,
+    e: E,
+    f: F,
+    g: G,
+    h: H,
+  ): OrResult<Parameters<A>[0], UnaryReturnType<G>, H['value']>;
+  <
+    A extends UnaryFunction,
+    B extends (value: UnaryReturnType<A>) => any,
+    C extends (value: UnaryExtends<A, B>) => any,
+    D extends (value: UnaryExtends<B, C>) => any,
+    E extends (value: UnaryExtends<C, D>) => any,
+    F extends (value: UnaryExtends<D, E>) => any,
+    G extends (value: UnaryExtends<E, F>) => any,
+    H extends (value: UnaryExtends<F, G>) => any,
+    I extends Otherwise<any>,
+  >(
+    a: A,
+    b: B,
+    c: C,
+    d: D,
+    e: E,
+    f: F,
+    g: G,
+    h: H,
+  ): OrResult<Parameters<A>[0], UnaryReturnType<H>, I['value']>;
 }
 //#endregion
 
-export default coerce;
+export default to;

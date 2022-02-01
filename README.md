@@ -26,18 +26,75 @@ try {
 
 ## [`./coerce`](https://github.com/resolute/std/blob/master/coerce.ts)
 
-Type validation and sanitization.
+Type validation and sanitization. This module contains a handful of utility functions and
+“coercers.” Coercers are unary functions that return validated/mutated input, or `throw`. The
+utility function `to` (alias `coerce`) allow you to chain these coercers. The `or` utility function
+may be used in the chain in order to specify a backup value to be returned instead of throwing an
+error.
 
-### `coerce`
+Additionally, the `is` and `not` utility functions return `true` if a coercer or chain of coercers
+(`to(…)`) passes or `false` if it throws.
 
-Coerce input to types and formats with sanitizers and validators.
+### Utility Functions
+
+### `to`
+
+Chain unary coercing functions.
 
 ```ts
-import { coerce, length, not, string, trim } from '@resolute/std/coerce';
-coerce(string, trim, not(length(0)))(' foo '); // 'foo'
-coerce(string, trim, not(length(0)))(' '); // TypeError
-coerce(string, trim, not(length(0)))(' ', undefined); // undefined
+import { nonempty, or, string, to, trim } from '@resolute/std/coerce';
+to(string, trim, nonempty)(' foo '); // 'foo'
+to(string, trim, nonempty)(' '); // throws TypeError
+to(string, trim, nonempty, or(undefined))(' '); // undefined
 ```
+
+### `or`
+
+Provide a backup value to be used when a coercer fails. If `instanceof Error`, then that error will
+be `throw`n. For any other value, it will be returned. The `or(…)` utility function must be the last
+parameter in `to`.
+
+```ts
+import { or, string, to } from '@resolute/std/coerce';
+to(string, or(null))('foo'); // 'foo'
+to(string, or(null))(1); // null
+to(string, or(new Error('foo')))(1); // throws Error: foo
+```
+
+### `is`
+
+Type guard test. Use with any type guard or mutating function that `throw`s on failure (almost all
+functions here do). The `is` function will catch the error and return `false`, otherwise it will
+return `true`.
+
+```ts
+import { is, string } from '@resolute/std/coerce';
+is(string)('foo'); // true
+is(string)(12345); // false
+```
+
+### `not`
+
+Negate type guard test. Use with any type guard or mutating function that `throw`s on failure
+(almost all functions here do). The `not` function will catch the error and return `true`, otherwise
+it will return `false`. @example
+
+```ts
+import { not, string } from '@resolute/std/coerce';
+not(string)('foo'); // false
+not(string)(12345); // true
+```
+
+### Type Guard Functions
+
+### `string`
+
+Returns the input if it is a string. Throws otherwise.
+
+### `number`
+
+Returns the input if it is a finite number. Throws otherwise including when input is `NaN` or
+`Infinity`.
 
 ## [`./color`](https://github.com/resolute/std/blob/master/color.ts)
 
@@ -134,6 +191,36 @@ incr(); // 2
 once(incr)(); // 1
 ```
 
+### `throttle`
+
+Limit the number of invocations of a given function (or different functions) within an interval
+window. Useful for avoiding API rate limits.
+
+```ts
+import { throttle } from '@resolute/std/control';
+const throttled = throttle(1, 1_000)(async () => {});
+await throttled();
+await throttled(); // 1s later
+```
+
+### `debounce`
+
+Returns a function, that, as long as it continues to be invoked (.), will not be triggered (*). The
+function will be called after it stops being called for `threshold` milliseconds.
+
+```ts
+//  /-- 10s --\ /-- 10s --\ /-- 10s --\
+// . . . . . . . . . . . . .           *
+import { debounce } from '@resolute/std/control';
+let state = 0;
+const fn = (value: number) => state += value;
+const debounced = debounce(fn, 50);
+debounced(1);
+debounced(1);
+debounced(1);
+// state === 1
+```
+
 ## [`./cookie`](https://github.com/resolute/std/blob/master/cookie.ts)
 
 Parse and stringify cookies. Methods available for DOM and service worker contexts.
@@ -145,6 +232,15 @@ Easing functions from [easings.net](https://easings.net/).
 ## [`./http`](https://github.com/resolute/std/blob/master/http.ts)
 
 Helpers for interacting with `Request` and `Response` objects.
+
+### `fetchOk`
+
+Throw if value is not in list.
+
+```ts
+import { fetchOk } from '@resolute/std/http';
+await fetchOk('https://httpstat.us/500'); // HttpError: HTTP 500 Error
+```
 
 ### `method`
 

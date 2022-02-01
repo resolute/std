@@ -1,3 +1,4 @@
+import { wrapError } from './coerce.ts';
 import { equals, exists, matches, strict, throws, throwsAsync } from './deps.test.ts';
 
 import {
@@ -6,12 +7,12 @@ import {
   fetchPass,
   fetchThrow500,
   HttpError,
-  isFormOrJsonPostRequest,
   jsonResponse,
   method,
   readBody,
   readResponseError,
   statusCodeFromError,
+  validDataPostRequest,
 } from './http.ts';
 
 const testGetRequest = new Request('file:///foo');
@@ -103,12 +104,12 @@ Deno.test('method', () => {
 });
 
 Deno.test('isFormOrJsonPostRequest', () => {
-  throws(() => isFormOrJsonPostRequest(testGetRequest), TypeError);
-  throws(() => isFormOrJsonPostRequest(testPutRequest), TypeError);
-  throws(() => isFormOrJsonPostRequest(testTextRequest), TypeError);
-  throws(() => isFormOrJsonPostRequest(testBlobRequest), TypeError);
-  strict(isFormOrJsonPostRequest(testJsonRequest), testJsonRequest);
-  strict(isFormOrJsonPostRequest(testFormRequest), testFormRequest);
+  throws(() => validDataPostRequest(testGetRequest), HttpError);
+  throws(() => validDataPostRequest(testPutRequest), HttpError);
+  throws(() => validDataPostRequest(testTextRequest), HttpError);
+  throws(() => validDataPostRequest(testBlobRequest), HttpError);
+  strict(validDataPostRequest(testJsonRequest), testJsonRequest);
+  strict(validDataPostRequest(testFormRequest), testFormRequest);
 });
 
 Deno.test('readBody', async () => {
@@ -175,3 +176,8 @@ Deno.test('fetchThrow500', () =>
     fetchThrow500('https://httpstat.us/200').then(readBody).then(exists),
     throwsAsync(() => fetchThrow500('https://httpstat.us/500')),
   ]).then(() => {}));
+
+Deno.test('HttpError', () => {
+  equals(wrapError(SyntaxError)('foo'), new SyntaxError('foo'));
+  equals(wrapError(HttpError)('foo'), new HttpError('foo'));
+});

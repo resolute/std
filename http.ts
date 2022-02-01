@@ -3,7 +3,9 @@ import {
   coerce,
   instance,
   not,
+  or,
   string,
+  to,
   within,
   // @ts-ignore tsc non-sense
 } from './coerce.ts';
@@ -72,10 +74,10 @@ export const replaceErrors = (_key: string, value: unknown) => {
  */
 export const method = <T extends string[]>(list: T) =>
   (request: Request) => {
-    coerce(within(arrayify(list)))(
-      request.method,
-      new HttpError(`Method must be within [${list.join(', ')}]`, 405),
-    );
+    coerce(
+      within(arrayify(list)),
+      or(new HttpError(`Method must be within [${list.join(', ')}]`, 405)),
+    )(request.method);
     return request;
   };
 
@@ -83,7 +85,7 @@ export const method = <T extends string[]>(list: T) =>
  * Categorize Request or Response Content-Type as json, form, text, or blob.
  */
 export const categorizeContentType = (input: Request | Response) => {
-  const type = coerce(string)(input.headers.get('content-type')!, '');
+  const type = coerce(string, or(''))(input.headers.get('content-type'));
   if (type.includes('application/json')) {
     return 'json';
   }
@@ -101,10 +103,11 @@ export const categorizeContentType = (input: Request | Response) => {
  */
 export const contentTypeCategory = (list: ReturnType<typeof categorizeContentType>[]) =>
   (input: Request | Response) => {
-    coerce(categorizeContentType, within(list))(
-      input,
-      new HttpError(`Content-Type category must be ${conjunction(list)}`, 415),
-    );
+    coerce(
+      categorizeContentType,
+      within(list),
+      or(new HttpError(`Content-Type category must be ${conjunction(list)}`, 415)),
+    )(input);
     return input;
   };
 
@@ -112,12 +115,12 @@ export const contentTypeCategory = (list: ReturnType<typeof categorizeContentTyp
  * Compound validation of a request that is method:POST and contains JSON or
  * form data.
  */
-export const isFormOrJsonPostRequest = (value: Request) =>
-  coerce(
-    instance(Request),
-    method(['POST']),
-    contentTypeCategory(['json', 'form']),
-  )(value);
+export const validDataPostRequest = to(
+  // @ts-ignore compiler may not see Request in global context
+  instance(globalThis.Request),
+  method(['POST']),
+  contentTypeCategory(['json', 'form']),
+);
 
 /**
  * Respond to client with JSON
@@ -164,7 +167,6 @@ export const cancelBody = <T extends Body>(input: T) => {
  * Read/craft an Error from a response.
  */
 export const readResponseError = async (response: Response) => {
-  // deno-lint-ignore no-explicit-any
   const data = await response.json().catch(() => ({})) as any;
   if (data && data.message) {
     return new HttpError(data.message, response.status);

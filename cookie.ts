@@ -5,9 +5,9 @@ import {
   defined,
   integer,
   is,
-  length,
-  not,
+  nonempty,
   number,
+  or,
   positive,
   string,
   trim,
@@ -34,10 +34,10 @@ export interface CookieOptions {
 }
 
 export const parse = (cookieString: string, decoder = decodeURIComponent) => {
-  const sanitizer = coerce(decoder, trim, not(length(0)));
+  const sanitizer = coerce(decoder, trim, nonempty, or(undefined));
   const splitPair = (pair: string) => {
     const [key, value] = pair.split('=', 2);
-    return [sanitizer(key, undefined), sanitizer(value, undefined)] as const;
+    return [sanitizer(key), sanitizer(value)] as const;
   };
   const pairs = cookieString.split(/; */)
     .map(splitPair)
@@ -51,11 +51,14 @@ export const stringify = (
   options: CookieOptions & { encoder?: typeof encodeURIComponent } = {},
 ) => {
   const encoder = options.encoder || encodeURIComponent;
-  const keyEncoded = coerce(string, trim, not(length(0)), encoder)(
-    key,
-    new TypeError(`“${key}” invalid cookie key.`),
-  );
-  const valueEncoded = coerce(string, trim, encoder)(value!, '');
+  const keyEncoded = coerce(
+    string,
+    trim,
+    nonempty,
+    encoder,
+    or(new TypeError(`“${key}” invalid cookie key.`)),
+  )(key);
+  const valueEncoded = coerce(string, trim, encoder, or(''))(value);
 
   // If `value` is anything other than a non-empty string, then this is a delete
   // operation and we set the `expires` to 0.
@@ -63,17 +66,20 @@ export const stringify = (
   if (valueEncoded === '') {
     expires = new Date(0).toUTCString();
   } else if (is(defined)(expires)) {
-    expires = coerce(date)(expires, new TypeError(`“${options.expires}” invalid cookie expires.`))
+    expires = coerce(
+      date,
+      or(new TypeError(`“${options.expires}” invalid cookie expires.`)),
+    )(expires)
       .toUTCString();
   }
 
   return [
     [keyEncoded, valueEncoded] as const,
     ['expires', expires] as const,
-    ['maxage', coerce(number, integer, positive)(options.maxage!, undefined)] as const,
-    ['domain', coerce(string, trim, not(length(0)))(options.domain!, undefined)] as const,
-    ['path', coerce(string, trim, not(length(0)))(options.path!, undefined)] as const,
-    ['samesite', coerce(within(['none', 'lax', 'strict']))(options.samesite, 'none')] as const,
+    ['maxage', coerce(number, integer, positive, or(undefined))(options.maxage)] as const,
+    ['domain', coerce(string, trim, nonempty, or(undefined))(options.domain)] as const,
+    ['path', coerce(string, trim, nonempty, or(undefined))(options.path)] as const,
+    ['samesite', coerce(within(['none', 'lax', 'strict']), or('none'))(options.samesite)] as const,
     ['secure', coerce(boolean(true, false, true, true))(options.secure)] as const,
     ['httponly', coerce(boolean(true, false, false, false))(options.httponly)] as const,
   ]
@@ -104,7 +110,7 @@ export const setDomCookie = (...args: Parameters<typeof stringify>) => {
  * (decodeURIComponent is the default).
  */
 export const getRequestCookies = (request: Request, decoder = decodeURIComponent) =>
-  parse(coerce(string)(request.headers.get('cookie')!, ''), decoder);
+  parse(coerce(string, or(''))(request.headers.get('cookie')), decoder);
 
 export const setResponseCookie = (response: Response, ...args: Parameters<typeof stringify>) => {
   response.headers.append('set-cookie', stringify(...args));
