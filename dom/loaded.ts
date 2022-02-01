@@ -28,7 +28,7 @@ export default (fn: FrameRequestCallback) => {
 };
 
 if (!loaded) {
-  addEventListener('load', () => {
+  addEventListener('pageshow', () => {
     loaded = true;
     requestAnimationFrame(recurse);
   }, { once: true });
