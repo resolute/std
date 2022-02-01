@@ -94,9 +94,8 @@ export const divide = (overlap = 1) =>
   /**
    * Use with array.map() to generate the divided scales.
    */
-  <T>(value: T, index: number, array: number | T[]) => {
-    const divisions = typeof array === 'number' ? array : array.length;
-    const unit = 1 / divisions;
+  <T>(value: T, index: number, array: T[]) => {
+    const unit = 1 / array.length;
     const min = index * unit;
     const max = min + unit * overlap;
     return [value, scale(min, max)] as const;
