@@ -128,7 +128,7 @@ export const retry = <T extends (...args: any[]) => Promise<any>>(
  * `threshold` milliseconds.
  *
  *       /-- 10s --\ /-- 10s --\ /-- 10s --\
- *     (*). . . . . . . . . . . .           *
+ *      . . . . . . . . . . . . .           *
  *
  * @param   fn          Function to be throttled
  * @param   threshold   Milliseconds fn will be throttled
