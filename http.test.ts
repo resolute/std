@@ -115,6 +115,7 @@ Deno.test('isFormOrJsonPostRequest', () => {
 Deno.test('readBody', async () => {
   await throwsAsync(() => readBody({} as Response), TypeError);
   await throwsAsync(() => readBody(testJsonResponseInvalid));
+  strict(await readBody(jsonResponse()), null);
   strict(await readBody(testTextRequest), 'foo: bar');
   strict(await readBody(testTextResponse), 'foo: bar');
   equals(await readBody(testJsonRequest), { foo: 'bar' });
@@ -130,6 +131,11 @@ Deno.test('jsonResponse', async () => {
   equals(await original.json(), { foo: 'bar' });
   const duplicate = jsonResponse(original);
   strict(original, duplicate);
+  strict(jsonResponse().status, 204);
+  strict(jsonResponse(null).status, 204);
+  strict(jsonResponse(null, 200).status, 204);
+  strict(jsonResponse(false).status, 200);
+  strict(await jsonResponse(false).json(), false);
 });
 
 Deno.test('readResponseError', async () => {

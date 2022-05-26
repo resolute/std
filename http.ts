@@ -1,6 +1,7 @@
 import {
   arrayify,
   coerce,
+  defined,
   instance,
   not,
   or,
@@ -125,16 +126,19 @@ export const validDataPostRequest = to(
 /**
  * Respond to client with JSON
  */
-export const jsonResponse = (payload: unknown, status = 200) => {
+export const jsonResponse = (payload?: unknown, status = 200) => {
   if (payload instanceof Response) {
     return payload;
   }
-  return new Response(JSON.stringify(payload, replaceErrors), {
-    status: statusCodeFromError(payload) || status,
-    headers: new Headers({
-      'content-type': 'application/json; charset=utf-8',
-    }),
+  if (not(defined)(payload)) {
+    return new Response(null, { status: 204 });
+  }
+  let code = statusCodeFromError(payload) || status;
+  let json: string | null = JSON.stringify(payload, replaceErrors);
+  const headers = new Headers({
+    'content-type': 'application/json; charset=utf-8',
   });
+  return new Response(json, { status: code, headers });
 };
 
 /**
@@ -142,6 +146,9 @@ export const jsonResponse = (payload: unknown, status = 200) => {
  * (json/text/formData/arrayBuffer) based on the content-type header.
  */
 export const readBody = async (input: Request | Response) => {
+  if (input.body === null) {
+    return null;
+  }
   switch (categorizeContentType(input)) {
     case 'json':
       return input.json();
