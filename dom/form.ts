@@ -1,5 +1,5 @@
 // @ts-ignore tsc non-sense
-import { coerce, instance, nonempty, string } from '../coerce.ts';
+import { instance, nonempty, or, string, to } from '../coerce.ts';
 // @ts-ignore tsc non-sense
 import { fetchThrow500, readResponseError } from '../http.ts';
 // @ts-ignore tsc non-sense
@@ -38,21 +38,20 @@ const clearError = (form: HTMLFormElement) => {
 
 const showError = (submit: HTMLInputElement) =>
   (error: unknown) => {
-    const { message } = coerce(instance(Error))(
-      error,
-      new Error('Unexpected error encountered. Please try again.'),
-    );
+    const { message } = to(
+      instance(Error),
+      or(new Error('Unexpected error encountered. Please try again.')),
+    )(error);
     submit.insertAdjacentHTML('beforebegin', `<p class="error">${message}</p>`);
   };
 
 const handler = async (form: HTMLFormElement) => {
   const inputs = form.querySelectorAll('input');
   const submit = form.querySelector<HTMLInputElement>('input[type="submit"]')!;
-  const method = coerce(string, nonempty)(form.getAttribute('method')!, 'POST');
-  const uri = coerce(string, nonempty)(
-    form.getAttribute('action')!,
-    new TypeError(`Invalid “action” attribute on ${form}.`),
-  );
+  const method = to(string, nonempty, or('POST'))(form.getAttribute('method')) as string;
+  const uri = to(string, nonempty, or(new TypeError(`Invalid “action” attribute on ${form}.`)))(
+    form.getAttribute('action'),
+  ) as string;
   const body = new FormData(form);
   clearError(form);
   submitting(inputs, submit);
@@ -61,11 +60,10 @@ const handler = async (form: HTMLFormElement) => {
     const retryFetch = retry(fetchThrow500);
     const response = await retryFetch(uri, options);
     if (!response.ok) {
+      // On errors, we _do_ consume Response body to parse an error message.
       throw await readResponseError(response);
     }
-    // TODO: design decision: should we include the response in the success
-    // event?
-    // const data = await response.json();
+    // Do _not_ consume Response object here since it is one-and-done.
     form.classList.add('thanks');
     form.dispatchEvent(new CustomEvent('success', { detail: response }));
   } catch (error) {
