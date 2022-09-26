@@ -70,6 +70,12 @@
       "default": "./misc.js",
       "types": "./misc.ts"
     },
+    "./promise": {
+      "import": "./promise.js",
+      "require": "./promise.cjs",
+      "default": "./promise.js",
+      "types": "./promise.ts"
+    },
     "./dom/bg-color-match": {
       "import": "./dom/bg-color-match.js",
       "require": "./dom/bg-color-match.cjs",
