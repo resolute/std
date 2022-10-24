@@ -16,15 +16,15 @@
  * @param max upper bound
  */
 export const range = (min: number, max: number) =>
-  /**
-   * Calculate the number in the defined range (`min`, `max`) specified by
-   * `percent`.
-   *
-   * **Note**: `percent`s (fractions) less than 0 or greater than 1 will return
-   * values outside of the `min`–`max` range.
-   * @param percent fraction
-   */
-  (percent: number) => min + (max - min) * percent;
+/**
+ * Calculate the number in the defined range (`min`, `max`) specified by
+ * `percent`.
+ *
+ * **Note**: `percent`s (fractions) less than 0 or greater than 1 will return
+ * values outside of the `min`–`max` range.
+ * @param percent fraction
+ */
+(percent: number) => min + (max - min) * percent;
 
 /**
  * Define a scaling function to calculate the percentage of `value` relative to
@@ -41,11 +41,11 @@ export const range = (min: number, max: number) =>
  * @param max upper bound
  */
 export const scale = (min: number, max: number) =>
-  /**
-   * Calculate the percentage of `value` relative to `min` and `max`.
-   * @param value relative to `min` and `max`
-   */
-  (value: number) => (value - min) / (max - min);
+/**
+ * Calculate the percentage of `value` relative to `min` and `max`.
+ * @param value relative to `min` and `max`
+ */
+(value: number) => (value - min) / (max - min);
 
 /**
  * Define a clamping function to keep a `value` bound to the `min` and
@@ -61,11 +61,11 @@ export const scale = (min: number, max: number) =>
  * @param max optional upper bound. Default 1
  */
 export const clamp = (min = 0, max = 1) =>
-  /**
-   * Clamp a `value` to the bounds defined by `min` and `max`
-   * @param value to be bounded to `min` and `max`
-   */
-  (value: number) => Math.min(max, Math.max(min, value));
+/**
+ * Clamp a `value` to the bounds defined by `min` and `max`
+ * @param value to be bounded to `min` and `max`
+ */
+(value: number) => Math.min(max, Math.max(min, value));
 
 export const clamp01 = clamp();
 
@@ -91,15 +91,15 @@ export const clamp01 = clamp();
  * @param overlap multiplier factor of overlap (1 means no overlap)
  */
 export const divide = (overlap = 1) =>
-  /**
-   * Use with array.map() to generate the divided scales.
-   */
-  <T>(value: T, index: number, array: T[]) => {
-    const unit = 1 / array.length;
-    const min = index * unit;
-    const max = min + unit * overlap;
-    return [value, scale(min, max)] as const;
-  };
+/**
+ * Use with array.map() to generate the divided scales.
+ */
+<T>(value: T, index: number, array: T[]) => {
+  const unit = 1 / array.length;
+  const min = index * unit;
+  const max = min + unit * overlap;
+  return [value, scale(min, max)] as const;
+};
 
 /**
  * Generate a random number **inclusively** between `min` and `max`.

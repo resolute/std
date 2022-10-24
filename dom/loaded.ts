@@ -1,35 +1,15 @@
-// Instead of DOMContentLoaded and readyState = "interactive",
-// which is the traditional DOM ready state, rely on "complete"
-// or window.onload.
+const makeReadyStatePromise = (regexp: RegExp, event: 'DOMContentLoaded' | 'pageshow') =>
+  new Promise<DOMHighResTimeStamp>((resolve) => {
+    const rafResolve = requestAnimationFrame.bind(undefined, resolve);
+    if (regexp.test(document.readyState)) {
+      addEventListener(event, rafResolve, { once: true });
+    } else {
+      rafResolve();
+    }
+  });
 
-let loaded = /^c/.test(document.readyState);
+export const interactive = /* @__PURE__ */ makeReadyStatePromise(/^l/, 'DOMContentLoaded');
 
-const fns: FrameRequestCallback[] = [];
+export const loaded = /* @__PURE__ */ makeReadyStatePromise(/^c/, 'pageshow');
 
-const recurse: FrameRequestCallback = (time) => {
-  const fn = fns.shift();
-  if (!fn) {
-    return;
-  }
-  fn(time);
-  requestAnimationFrame(recurse);
-};
-
-/**
- * Invoke function after Window “load” event. If load has transpired, function
- * is invoked using `requestAnimationFrame()`.
- */
-export default (fn: FrameRequestCallback) => {
-  if (loaded) {
-    requestAnimationFrame(fn);
-  } else {
-    fns.push(fn);
-  }
-};
-
-if (!loaded) {
-  addEventListener('pageshow', () => {
-    loaded = true;
-    requestAnimationFrame(recurse);
-  }, { once: true });
-}
+export default (fn: FrameRequestCallback) => loaded.then(requestAnimationFrame.bind(undefined, fn));

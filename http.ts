@@ -73,14 +73,13 @@ export const replaceErrors = (_key: string, value: unknown) => {
 /**
  * Request.method must be within `list`.
  */
-export const method = <T extends string[]>(list: T) =>
-  (request: Request) => {
-    coerce(
-      within(arrayify(list)),
-      or(new HttpError(`Method must be within [${list.join(', ')}]`, 405)),
-    )(request.method);
-    return request;
-  };
+export const method = <T extends string[]>(list: T) => (request: Request) => {
+  coerce(
+    within(arrayify(list)),
+    or(new HttpError(`Method must be within [${list.join(', ')}]`, 405)),
+  )(request.method);
+  return request;
+};
 
 /**
  * Categorize Request or Response Content-Type as json, form, text, or blob.
@@ -102,8 +101,8 @@ export const categorizeContentType = (input: Request | Response) => {
 /**
  * Request or Response Content Type “Category” must be within `list`.
  */
-export const contentTypeCategory = (list: ReturnType<typeof categorizeContentType>[]) =>
-  (input: Request | Response) => {
+export const contentTypeCategory =
+  (list: ReturnType<typeof categorizeContentType>[]) => (input: Request | Response) => {
     coerce(
       categorizeContentType,
       within(list),
@@ -116,7 +115,7 @@ export const contentTypeCategory = (list: ReturnType<typeof categorizeContentTyp
  * Compound validation of a request that is method:POST and contains JSON or
  * form data.
  */
-export const validDataPostRequest = to(
+export const validDataPostRequest = /* @__PURE__ */ to(
   // @ts-ignore compiler may not see Request in global context
   instance(globalThis.Request),
   method(['POST']),
@@ -215,4 +214,4 @@ export const fetchPass = async (status: number | number[], ...args: Parameters<t
   return response;
 };
 
-export const fetchThrow500 = fetchThrow.bind(null, 500);
+export const fetchThrow500 = /* @__PURE__ */ fetchThrow.bind(null, 500);

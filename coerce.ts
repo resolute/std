@@ -277,21 +277,19 @@ export const func = <T>(value: T) => {
  * @returns value
  * @throws if value is not `instanceof …`
  */
-export const instance = <T extends Constructor>(constructor: T) =>
-  (value: unknown) => {
-    if (is(func)(constructor) && value instanceof constructor) {
-      return value as InstanceType<T>;
-    }
-    throw makeError(value, `an instance of ${constructor}`);
-  };
+export const instance = <T extends Constructor>(constructor: T) => (value: unknown) => {
+  if (is(func)(constructor) && value instanceof constructor) {
+    return value as InstanceType<T>;
+  }
+  throw makeError(value, `an instance of ${constructor}`);
+};
 
-export const own = <K extends string | number | symbol>(property: K) =>
-  <T>(value: T) => {
-    if (Object.prototype.hasOwnProperty.call(value, property)) {
-      return value as T & { [Property in K]: any };
-    }
-    throw makeError(value, `an object with own “${String(property)}” property`);
-  };
+export const own = <K extends string | number | symbol>(property: K) => <T>(value: T) => {
+  if (Object.prototype.hasOwnProperty.call(value, property)) {
+    return value as T & { [Property in K]: any };
+  }
+  throw makeError(value, `an object with own “${String(property)}” property`);
+};
 //#endregion
 
 //#region Validators
@@ -324,7 +322,7 @@ export const zero = <T extends number>(value: T) => {
  * Alias `not(zero)`
  * @see zero
  */
-export const nonzero = not(zero);
+export const nonzero = /* @__PURE__ */ not(zero);
 
 /**
  * Number > 0
@@ -332,7 +330,7 @@ export const nonzero = not(zero);
  * @returns value
  * @throws if value <= 0
  */
-export const positive = to(
+export const positive = /* @__PURE__ */ to(
   nonzero,
   (value: number) => {
     if (value > 0) {
@@ -387,41 +385,43 @@ export const past = (value: Date) => {
  * @returns validator
  */
 export const length = <N extends number>(size: N) =>
-  /**
-   * Length of string or array is exactly `size`
-   * @param value `string` or `array`
-   * @returns value
-   * @throws if value is not of length `size`
-   */
-  <T extends { length: number }>(value: T) => {
-    if (value?.length === size) {
-      return value as T & { length: N };
-    }
-    throw makeError(value, `of length: ${size}`);
-  };
+/**
+ * Length of string or array is exactly `size`
+ * @param value `string` or `array`
+ * @returns value
+ * @throws if value is not of length `size`
+ */
+<T extends { length: number }>(value: T) => {
+  if (value?.length === size) {
+    return value as T & { length: N };
+  }
+  throw makeError(value, `of length: ${size}`);
+};
 
 /**
  * Alias `not(length(0))`
  * @see length
  */
 // `not` kind of messes up the types here. Explicit type definition used:
-export const nonempty = not(length(0)) as <T extends { length: number }>(value: T) => T;
+export const nonempty = /* @__PURE__ */ not(length(0)) as <T extends { length: number }>(
+  value: T,
+) => T;
 
 /**
  * `value` is within `list` (a.k.a. Enum)
  */
 export const within = <T>(list: readonly T[]) =>
-  /**
-   * @param value member of `list`
-   * @returns value
-   * @throws if value is not a member of `list`
-   */
-  <V>(value: V) => {
-    if (list.indexOf(value as unknown as T) >= 0) {
-      return value as V & T;
-    }
-    throw makeError(value, `one of ${list}`);
-  };
+/**
+ * @param value member of `list`
+ * @returns value
+ * @throws if value is not a member of `list`
+ */
+<V>(value: V) => {
+  if (list.indexOf(value as unknown as T) >= 0) {
+    return value as V & T;
+  }
+  throw makeError(value, `one of ${list}`);
+};
 
 /**
  * Validate against the Luhn algorithm (adapted from
@@ -602,20 +602,19 @@ export const pairs = <T extends Iterable<[K, V]>, K, V>(value: T) =>
  * @returns wrapper
  * @throws if value is not a string or instanceof Error
  */
-export const wrapError: WrapError = (wrapper?: ErrorConstructor) =>
-  (value: Error | string) => {
-    const wrap = wrapper ?? Error;
-    if (is(instance(wrap))(value)) {
-      return value;
-    }
-    if (is(instance(Error))(value)) {
-      return new wrap(value.message);
-    }
-    if (is(string)(value)) {
-      return new wrap(value);
-    }
-    throw makeError(value, `string, Error, or ${wrap.name}`);
-  };
+export const wrapError: WrapError = (wrapper?: ErrorConstructor) => (value: Error | string) => {
+  const wrap = wrapper ?? Error;
+  if (is(instance(wrap))(value)) {
+    return value;
+  }
+  if (is(instance(Error))(value)) {
+    return new wrap(value.message);
+  }
+  if (is(string)(value)) {
+    return new wrap(value);
+  }
+  throw makeError(value, `string, Error, or ${wrap.name}`);
+};
 
 /**
  * Round to integer
@@ -718,35 +717,34 @@ export const ucFirst = ucfirst;
 
 const hasBothUpperAndLower = (value: string) => /[A-Z]/.test(value) && /[a-z]/.test(value);
 
-const properNameCapitalizer = (mixedCase: boolean) =>
-  (match: string) => {
-    const lowerCaseMatch = match.toLowerCase();
-    // single letters should be uppercase (middle initials, etc.)
-    if (match.length === 1) {
+const properNameCapitalizer = (mixedCase: boolean) => (match: string) => {
+  const lowerCaseMatch = match.toLowerCase();
+  // single letters should be uppercase (middle initials, etc.)
+  if (match.length === 1) {
+    return match.toUpperCase();
+  }
+  if (match.length <= 3) {
+    // suffixes that should be all uppercase
+    if (['ii', 'iii', 'iv', 'v'].indexOf(lowerCaseMatch) > -1) {
       return match.toUpperCase();
     }
-    if (match.length <= 3) {
-      // suffixes that should be all uppercase
-      if (['ii', 'iii', 'iv', 'v'].indexOf(lowerCaseMatch) > -1) {
-        return match.toUpperCase();
-      }
-      // compound names that should be lowercase
-      if (['dit', 'de', 'von'].indexOf(lowerCaseMatch) > -1) {
-        return lowerCaseMatch;
-      }
-      if (mixedCase) {
-        return match;
-      }
+    // compound names that should be lowercase
+    if (['dit', 'de', 'von'].indexOf(lowerCaseMatch) > -1) {
+      return lowerCaseMatch;
     }
-    return (
-      ucfirst(lowerCaseMatch)
-        // McXx, MacXx, O’Xx, D’Xx
-        .replace(
-          /^(ma?c|[od]’)(\S{2,}$)/i,
-          (_m, p1, p2) => ucfirst(p1) + ucfirst(p2),
-        )
-    );
-  };
+    if (mixedCase) {
+      return match;
+    }
+  }
+  return (
+    ucfirst(lowerCaseMatch)
+      // McXx, MacXx, O’Xx, D’Xx
+      .replace(
+        /^(ma?c|[od]’)(\S{2,}$)/i,
+        (_m, p1, p2) => ucfirst(p1) + ucfirst(p2),
+      )
+  );
+};
 
 /**
  * Fix capitalization of proper nouns: names, addresses
@@ -770,7 +768,7 @@ export const proper = (value: string) =>
  * @returns string
  * @throws if value does not resemble an email
  */
-export const email = to(
+export const email = /* @__PURE__ */ to(
   (value: string) => value.toLowerCase().replace(/\s+/g, ''),
   nonempty,
   (value: string) => {
@@ -853,25 +851,25 @@ export const postalCodeUs5 = (value: string) =>
  * @returns function to limit given input
  */
 export const limit = (max: number) =>
-  /**
-   * Limit the value of a `number`, characters in a `string`, or items in an
-   * `array`
-   * @param value number | string | array
-   * @returns number | string | array limited to `max`
-   * @throws if value is not a number, string, or array
-   */
-  <T extends (number | string | any[] | readonly any[])>(value: T) => {
-    if (is(number)(value)) {
-      return Math.min(value, max) as T;
-    }
-    if (is(string)(value)) {
-      return value.slice(0, max) as T;
-    }
-    if (is(array)(value)) {
-      return value.slice(0, max) as T;
-    }
-    throw makeError(value, `able to be limited to ${max}`);
-  };
+/**
+ * Limit the value of a `number`, characters in a `string`, or items in an
+ * `array`
+ * @param value number | string | array
+ * @returns number | string | array limited to `max`
+ * @throws if value is not a number, string, or array
+ */
+<T extends (number | string | any[] | readonly any[])>(value: T) => {
+  if (is(number)(value)) {
+    return Math.min(value, max) as T;
+  }
+  if (is(string)(value)) {
+    return value.slice(0, max) as T;
+  }
+  if (is(array)(value)) {
+    return value.slice(0, max) as T;
+  }
+  throw makeError(value, `able to be limited to ${max}`);
+};
 
 /**
  * Split a string into an array. Optionally define a separator RegExp. Default
@@ -880,23 +878,23 @@ export const limit = (max: number) =>
  * @param limit optionally limit the number of items in result
  */
 export const split = (separator = /[,\r\n\s]+/g, limit?: number) =>
-  /**
-   * Split a string by given `separator` (default: comma, newline, space, tab).
-   * Remove empty strings from returned array.
-   * @example
-   * ```ts
-   * import { split } from '@resolute/std/coerce';
-   * split()('a,b,,,c d e foo') // ['a', 'b', 'c', 'd', 'e', 'foo']
-   * ```
-   * @param value string
-   * @returns array of strings split by `separator`
-   * @throws if value is not a string
-   */
-  (value: string) =>
-    value.split(separator, limit)
-      .map(spaces) // remove irregular spaces
-      .map(trim)
-      .filter(nonempty);
+/**
+ * Split a string by given `separator` (default: comma, newline, space, tab).
+ * Remove empty strings from returned array.
+ * @example
+ * ```ts
+ * import { split } from '@resolute/std/coerce';
+ * split()('a,b,,,c d e foo') // ['a', 'b', 'c', 'd', 'e', 'foo']
+ * ```
+ * @param value string
+ * @returns array of strings split by `separator`
+ * @throws if value is not a string
+ */
+(value: string) =>
+  value.split(separator, limit)
+    .map(spaces) // remove irregular spaces
+    .map(trim)
+    .filter(nonempty);
 
 //#endregion
 

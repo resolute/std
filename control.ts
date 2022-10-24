@@ -17,7 +17,7 @@ export const defer = <T>() => {
   return [promise, resolve, reject] as const;
 };
 
-const onceCache = new WeakMap<(...args: any[]) => any, any>();
+const onceCache = /* @__PURE__ */ new WeakMap<(...args: any[]) => any, any>();
 
 /**
  * Wrap a function that to be executed once. Subsequent calls will return the

@@ -36,14 +36,13 @@ const clearError = (form: HTMLFormElement) => {
   }
 };
 
-const showError = (submit: HTMLInputElement) =>
-  (error: unknown) => {
-    const { message } = to(
-      instance(Error),
-      or(new Error('Unexpected error encountered. Please try again.')),
-    )(error);
-    submit.insertAdjacentHTML('beforebegin', `<p class="error">${message}</p>`);
-  };
+const showError = (submit: HTMLInputElement) => (error: unknown) => {
+  const { message } = to(
+    instance(Error),
+    or(new Error('Unexpected error encountered. Please try again.')),
+  )(error);
+  submit.insertAdjacentHTML('beforebegin', `<p class="error">${message}</p>`);
+};
 
 const handler = async (form: HTMLFormElement) => {
   const inputs = form.querySelectorAll('input');

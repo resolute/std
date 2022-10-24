@@ -30,19 +30,18 @@ const extDatabase = Object.fromEntries(
     ).flat(),
 ) as { [K in MimeTypes as (typeof mimeDatabase)[K][number]]: K };
 
-const check = <T>(regex: RegExp, keys: readonly T[], message: string) =>
-  (input: unknown) => {
-    const cleaned = string(input).replace(regex, '');
-    if (is(within(keys))(cleaned)) {
-      return cleaned;
-    }
-    throw new TypeError(`Expected “${input}” to be ${message}.`);
-  };
+const check = <T>(regex: RegExp, keys: readonly T[], message: string) => (input: unknown) => {
+  const cleaned = string(input).replace(regex, '');
+  if (is(within(keys))(cleaned)) {
+    return cleaned;
+  }
+  throw new TypeError(`Expected “${input}” to be ${message}.`);
+};
 
 /**
  * Validate a file extension.
  */
-export const ext = check(
+export const ext = /* @__PURE__ */ check(
   /^\./,
   Object.keys(extDatabase) as MimeExtensions[],
   'a valid extension',
@@ -58,7 +57,7 @@ export const extToMime = (input: unknown) => extDatabase[ext(input)];
 /**
  * Validate a mime type.
  */
-export const mime = check(
+export const mime = /* @__PURE__ */ check(
   /;.*$/,
   Object.keys(mimeDatabase) as MimeTypes[],
   'a valid mime type',

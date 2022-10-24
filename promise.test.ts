@@ -6,12 +6,11 @@ import { sleep } from './control.ts';
 /**
  * Mimic an expensive or time intensive function.
  */
-const expensive = (duration = 10, state = 0) =>
-  async () => {
-    ++state;
-    await sleep(duration);
-    return state;
-  };
+const expensive = (duration = 10, state = 0) => async () => {
+  ++state;
+  await sleep(duration);
+  return state;
+};
 
 Deno.test('keeper', async () => {
   const kept = keeper(expensive());

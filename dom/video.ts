@@ -14,13 +14,13 @@ const masterObserver = new IntersectionObserver((entries, observer) => {
   }
 });
 
-const observe = masterObserver.observe.bind(masterObserver);
+const observe = /* @__PURE__ */ masterObserver.observe.bind(masterObserver);
 
 export const lazy = (videos: NodeListOf<HTMLVideoElement>) => {
   videos.forEach(observe);
 };
 
-const loopTimers = new WeakMap<HTMLVideoElement, number>();
+const loopTimers = /* @__PURE__ */ new WeakMap<HTMLVideoElement, number>();
 
 const clearLoopTimer = (video: HTMLVideoElement) => {
   const existingTimer = loopTimers.get(video);

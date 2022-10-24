@@ -26,7 +26,7 @@ export type MapKeys<A, B> = {
   [K in keyof A as A[K] extends string ? A[K] : never]: K extends keyof B ? B[K] : never;
 };
 
-export const properName = coerce(
+export const properName = /* @__PURE__ */ coerce(
   string,
   spaces,
   trim,
@@ -37,9 +37,9 @@ export const properName = coerce(
   string,
 );
 
-export const cleanEmail = coerce(string, email, limit(100), string);
+export const cleanEmail = /* @__PURE__ */ coerce(string, email, limit(100), string);
 
-export const cleanPhone = coerce(string, prettyPhone);
+export const cleanPhone = /* @__PURE__ */ coerce(string, prettyPhone);
 
 /**
  * Type guard against any tuples containing `undefined` or `null`.
@@ -66,7 +66,7 @@ export const mapKeyAValB = <A, B>(
   b: B,
 ): MapKeyAValB<A, B> =>
   Object.fromEntries(
-    Object.entries(a)
+    Object.entries(a as {})
       // @ts-ignore too much fighting with Object.*entries()
       .map(([aKey, aVal]) => [aKey, b[aVal]])
       .filter(isDefinedTuple),
@@ -89,7 +89,7 @@ export const mapKeys = <A, B>(
   b: B,
 ): MapKeys<A, B> =>
   Object.fromEntries(
-    Object.entries(a)
+    Object.entries(a as {})
       // @ts-ignore too much fighting with Object.*entries()
       .map(([aKey, aVal]) => [aVal, b[aKey]])
       .filter(isDefinedTuple),
