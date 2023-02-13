@@ -15,6 +15,9 @@ import {
   validDataPostRequest,
 } from './http.ts';
 
+const BASE_TEST_HTTP_URL = 'https://httpbin.org/status';
+// const BASE_TEST_HTTP_URL = 'https://httpstat.us';
+
 const testGetRequest = new Request('file:///foo');
 
 const testPutRequest = new Request('file:///foo', {
@@ -149,38 +152,38 @@ Deno.test('readResponseError', async () => {
 
 Deno.test('fetchOk', () =>
   Promise.all([
-    fetchOk('https://httpstat.us/200').then(cancelBody).then(exists),
-    fetchOk('https://httpstat.us/301').then(cancelBody).then(exists),
-    throwsAsync(() => fetchOk('https://httpstat.us/301', { redirect: 'manual' }), HttpError),
-    throwsAsync(() => fetchOk('https://httpstat.us/301', { redirect: 'error' }), Error),
-    throwsAsync(() => fetchOk('https://httpstat.us/404'), HttpError),
-    throwsAsync(() => fetchOk('https://httpstat.us/500'), HttpError),
+    fetchOk(`${BASE_TEST_HTTP_URL}/200`).then(cancelBody).then(exists),
+    fetchOk(`${BASE_TEST_HTTP_URL}/301`).then(cancelBody).then(exists),
+    throwsAsync(() => fetchOk(`${BASE_TEST_HTTP_URL}/301`, { redirect: 'manual' }), HttpError),
+    throwsAsync(() => fetchOk(`${BASE_TEST_HTTP_URL}/301`, { redirect: 'error' }), Error),
+    throwsAsync(() => fetchOk(`${BASE_TEST_HTTP_URL}/404`), HttpError),
+    throwsAsync(() => fetchOk(`${BASE_TEST_HTTP_URL}/500`), HttpError),
   ]).then(() => {}));
 
 Deno.test('fetchPass', () =>
   Promise.all([
-    fetchPass(200, 'https://httpstat.us/200').then(readBody).then(exists),
-    fetchPass(200, 'https://httpstat.us/301').then(readBody).then(exists),
-    fetchPass([200, 404], 'https://httpstat.us/404').then(readBody).then(exists),
-    fetchPass(301, 'https://httpstat.us/301', { redirect: 'manual' }).then(readBody).then(
+    fetchPass(200, `${BASE_TEST_HTTP_URL}/200`).then(readBody).then(exists),
+    fetchPass(200, `${BASE_TEST_HTTP_URL}/301`).then(readBody).then(exists),
+    fetchPass([200, 404], `${BASE_TEST_HTTP_URL}/404`).then(readBody).then(exists),
+    fetchPass(301, `${BASE_TEST_HTTP_URL}/301`, { redirect: 'manual' }).then(readBody).then(
       exists,
     ),
     throwsAsync(
-      () => fetchPass(200, 'https://httpstat.us/301', { redirect: 'manual' }),
+      () => fetchPass(200, `${BASE_TEST_HTTP_URL}/301`, { redirect: 'manual' }),
       HttpError,
     ),
     throwsAsync(
-      () => fetchPass(200, 'https://httpstat.us/301', { redirect: 'error' }),
+      () => fetchPass(200, `${BASE_TEST_HTTP_URL}/301`, { redirect: 'error' }),
       Error,
     ),
-    throwsAsync(() => fetchPass([200, 404], 'https://httpstat.us/403'), HttpError),
-    throwsAsync(() => fetchPass(200, 'https://httpstat.us/500'), HttpError),
+    throwsAsync(() => fetchPass([200, 404], `${BASE_TEST_HTTP_URL}/403`), HttpError),
+    throwsAsync(() => fetchPass(200, `${BASE_TEST_HTTP_URL}/500`), HttpError),
   ]).then(() => {}));
 
 Deno.test('fetchThrow500', () =>
   Promise.all([
-    fetchThrow500('https://httpstat.us/200').then(readBody).then(exists),
-    throwsAsync(() => fetchThrow500('https://httpstat.us/500')),
+    fetchThrow500(`${BASE_TEST_HTTP_URL}/200`).then(readBody).then(exists),
+    throwsAsync(() => fetchThrow500(`${BASE_TEST_HTTP_URL}/500`)),
   ]).then(() => {}));
 
 Deno.test('HttpError', () => {
