@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
     "allowJs": true,
-    "lib": ["dom", "dom.iterable", "deno.ns"],
+    "lib": ["dom", "dom.iterable", "deno.ns", "dom.asynciterable"],
     "strict": true
   },
   "lint": {
@@ -22,5 +22,25 @@
       "singleQuote": true,
       "proseWrap": "always"
     }
+  },
+  "imports": {
+    "@resolute/std/coerce": "./coerce.ts",
+    "@resolute/std/color": "./color.ts",
+    "@resolute/std/control": "./control.ts",
+    "@resolute/std/dom/bg-color-match": "./dom/bg-color-match.ts",
+    "@resolute/std/dom/closest-inclusive": "./dom/closest-inclusive.ts",
+    "@resolute/std/dom/facade": "./dom/facade.ts",
+    "@resolute/std/dom/form": "./dom/form.ts",
+    "@resolute/std/dom/loaded": "./dom/loaded.ts",
+    "@resolute/std/dom/parallax": "./dom/parallax.ts",
+    "@resolute/std/dom/script": "./dom/script.ts",
+    "@resolute/std/dom/video": "./dom/video.ts",
+    "@resolute/std/ease": "./ease.ts",
+    "@resolute/std/http": "./http.ts",
+    "@resolute/std/intl": "./intl.ts",
+    "@resolute/std/math": "./math.ts",
+    "@resolute/std/mime": "./mime.ts",
+    "@resolute/std/misc": "./misc.ts",
+    "@resolute/std/promise": "./promise.ts"
   }
 }
