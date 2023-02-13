@@ -1,6 +1,5 @@
 import {
   arrayify,
-  coerce,
   defined,
   instance,
   not,
@@ -74,7 +73,7 @@ export const replaceErrors = (_key: string, value: unknown) => {
  * Request.method must be within `list`.
  */
 export const method = <T extends string[]>(list: T) => (request: Request) => {
-  coerce(
+  to(
     within(arrayify(list)),
     or(new HttpError(`Method must be within [${list.join(', ')}]`, 405)),
   )(request.method);
@@ -85,7 +84,7 @@ export const method = <T extends string[]>(list: T) => (request: Request) => {
  * Categorize Request or Response Content-Type as json, form, text, or blob.
  */
 export const categorizeContentType = (input: Request | Response) => {
-  const type = coerce(string, or(''))(input.headers.get('content-type'));
+  const type = to(string, or(''))(input.headers.get('content-type'));
   if (type.includes('application/json')) {
     return 'json';
   }
@@ -103,7 +102,7 @@ export const categorizeContentType = (input: Request | Response) => {
  */
 export const contentTypeCategory =
   (list: ReturnType<typeof categorizeContentType>[]) => (input: Request | Response) => {
-    coerce(
+    to(
       categorizeContentType,
       within(list),
       or(new HttpError(`Content-Type category must be ${conjunction(list)}`, 415)),

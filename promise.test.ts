@@ -47,6 +47,7 @@ Deno.test('keeper + interval', async () => {
   const kept = keeper(expensive());
   strict(await kept.get(), 1);
   kept.start(100);
+  strict(typeof kept.timer !== 'undefined' && kept.timer >= 0, true);
   await sleep(400); // 300 would be exact, but trying to avoid premature test fails
   strict(kept.stale() >= 3, true);
   kept.stop();

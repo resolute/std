@@ -4,11 +4,12 @@ export interface Keeper<R> {
   stale: () => R;
   start: (timeout?: number) => undefined;
   stop: () => void;
+  timer: number | undefined;
 }
 
 const empty = Symbol('Empty');
 
-const storage = new WeakMap<() => Promise<unknown>, unknown>();
+const defaultStorage = new WeakMap<() => Promise<unknown>, unknown>();
 
 /**
  * Promise Keeper: caching for promises.
@@ -91,19 +92,24 @@ const keep = <R>(fn: () => Promise<R>) => {
   const start = (delay = 1000 * 60 * 60 * 30) => {
     stop();
     timeout = setInterval(fresh, delay) as unknown as number;
-    // @ts-ignore Node.js context, unref the timer
-    timeout.unref?.();
   };
+
   return {
     fresh,
     get,
     stale,
     start,
     stop,
+    /**
+     * Return the current timer. Useful if you wish to `unref` it.
+     */
+    get timer() {
+      return timeout;
+    },
   };
 };
 
-export const keeper = <R>(fn: () => Promise<R>) => {
+export const keeper = <R>(fn: () => Promise<R>, storage = defaultStorage) => {
   if (!storage.has(fn)) {
     storage.set(fn, keep(fn));
   }

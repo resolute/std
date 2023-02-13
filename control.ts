@@ -1,6 +1,4 @@
-// deno-lint-ignore-file no-explicit-any
 // @ts-ignore tsc non-sense
-
 import { randomIntInclusive } from './math.ts';
 
 /**
@@ -42,21 +40,62 @@ export const once = <T extends (...args: any[]) => any>(fn: T) =>
     return onceCache.get(fn);
   }) as T;
 
+const parseSleepArgs = <T extends (...args: any[]) => any>(
+  input: readonly [
+    (AbortSignal | T | undefined)?,
+    (T | Parameters<T>[0] | undefined)?,
+    ...(Parameters<T>[0] | Parameters<T>[1])[],
+  ],
+) => {
+  let signal: AbortSignal | undefined;
+  let fn: T = (() => {}) as T;
+  let args = [] as [...Parameters<T>][];
+  let cursor = 0;
+  if (input[cursor] instanceof AbortSignal) {
+    signal = input[cursor] as AbortSignal;
+    cursor++;
+  }
+  if (typeof input[cursor] === 'function') {
+    fn = input[cursor] as T;
+    cursor++;
+  } else if (typeof input[cursor + 1] === 'function') {
+    fn = input[cursor + 1] as T;
+    cursor += 2;
+  }
+  if (cursor <= input.length) {
+    args = input.slice(cursor) as Parameters<T>;
+  }
+  return [signal, fn, args] as const;
+};
+
 /**
  * Promisify `setTimeout`. Returns a Promise that settles with the return of the
  * passed function after `delay` milliseconds.
  *
  * @param delay milliseconds.
+ * @param signal optional AbortSignal
  * @param fn async or Promise-returning delayed function.
  * @param args optional params to be passed to delayed function.
  */
-export const sleep = <T extends (...args: any[]) => any>(
-  delay = 0,
-  fn = ((() => {}) as T),
-  ...args: Parameters<T>
-) => {
-  const [promise, resolve] = defer<ReturnType<T>>();
-  setTimeout(() => resolve(fn(...args)), delay);
+// deno-fmt-ignore
+interface Sleep {
+  <T extends (...args: any[]) => any>(delay: number, fn?: T, ...args: Parameters<T>): Promise<ReturnType<T>>;
+  <T extends (...args: any[]) => any>(delay: number, signal?: AbortSignal, fn?: T, ...args: Parameters<T>): Promise<ReturnType<T>>;
+}
+export const sleep: Sleep = (delay = 0, ...input) => {
+  const [signal, fn, args] = parseSleepArgs(input);
+  const [promise, resolve, reject] = defer();
+  if (signal) {
+    if (signal?.aborted) {
+      reject(signal.reason);
+      return promise;
+    }
+    signal.addEventListener('abort', () => {
+      clearTimeout(timer);
+      reject(signal.reason);
+    });
+  }
+  const timer = setTimeout(() => resolve(fn(...args)), delay);
   return promise;
 };
 
@@ -92,11 +131,14 @@ const retryOn = (error: Error, attempt: number, retries: number): void | Promise
 
 const retryDefaults = { retries: 3, delay, retryOn };
 
+export type RetryOptions = Partial<typeof retryDefaults & { signal: AbortSignal }>;
+
 /**
  * Wrap an async or promise-returning function that when called will retry up to
  * `retries` times or until it resolves, whichever comes first.
  * @param fn Promise-returning function that will be retried
  * @param options
+ * @param options.signal optional AbortSignal
  * @param options.retries limit of retries allowed. Default: 3
  * @param options.delay how long to wait before retrying. Default: exponential
  * backoff with random jitter
@@ -105,9 +147,9 @@ const retryDefaults = { retries: 3, delay, retryOn };
  */
 export const retry = <T extends (...args: any[]) => Promise<any>>(
   fn: T,
-  options: Partial<typeof retryDefaults> = {},
+  options: RetryOptions = {},
 ) => {
-  const { retries, delay, retryOn } = { ...retryDefaults, ...options };
+  const { signal, retries, delay, retryOn } = { ...retryDefaults, ...options };
   let attempt = 0;
   const retry = (async (...args: Parameters<T>) => {
     try {
@@ -116,7 +158,8 @@ export const retry = <T extends (...args: any[]) => Promise<any>>(
       return result;
     } catch (error) {
       await retryOn(error as Error, attempt, retries);
-      return sleep(delay(attempt), retry, ...args);
+      // console.log(signal);
+      return sleep(delay(attempt), signal, retry, ...args);
     }
   }) as T;
   return retry;
@@ -134,17 +177,34 @@ export const retry = <T extends (...args: any[]) => Promise<any>>(
  * @param   threshold   Milliseconds fn will be throttled
  * @return  Debounced wrapped `fn`
  */
-export const debounce = <T extends (...args: any[]) => any>(fn: T, threshold?: number) => {
+export const debounce = <T extends (...args: any[]) => any>(
+  fn: T,
+  threshold: number,
+  signal?: AbortSignal,
+) => {
   let timeout = 0;
-  return ((...args: Parameters<T>) => {
+  const clearTimer = () => {
     if (timeout) {
       clearTimeout(timeout);
+    }
+  };
+  return ((...args: Parameters<T>) => {
+    clearTimer();
+    if (signal) {
+      if (signal.aborted) {
+        return;
+      }
+      signal.addEventListener('abort', clearTimer);
     }
     timeout = setTimeout(() => {
       timeout = 0;
       fn(...args);
     }, threshold) as unknown as number;
   }) as T;
+};
+
+export type ThrottledFunction<T extends (...args: any[]) => any> = T & {
+  abort: AbortController['abort'];
 };
 
 /**
@@ -174,7 +234,16 @@ export const throttle = (limit: number, interval: number) => {
     return currentTick - now;
   };
   return <T extends (...args: any[]) => any>(fn: T) => {
-    const throttled = (...args: any[]) => {
+    const controller = new AbortController();
+    const { signal } = controller;
+    signal.addEventListener('abort', () => {
+      for (const [timeout, reject] of queue.entries()) {
+        clearTimeout(timeout);
+        reject(signal.reason);
+      }
+      queue.clear();
+    });
+    const throttled = ((...args: any[]) => {
       const [promise, resolve, reject] = defer<ReturnType<T>>();
       const execute = () => {
         resolve(fn(...args));
@@ -183,14 +252,8 @@ export const throttle = (limit: number, interval: number) => {
       const timeout = setTimeout(execute, getDelay()) as unknown as number;
       queue.set(timeout, reject);
       return promise as ReturnType<T>;
-    };
-    (throttled as T & { abort: (error: Error) => void }).abort = (error: Error) => {
-      for (const [timeout, reject] of queue.entries()) {
-        clearTimeout(timeout);
-        reject(error);
-      }
-      queue.clear();
-    };
-    return throttled as T & { abort: (error: Error) => void };
+    }) as ThrottledFunction<T>;
+    throttled.abort = controller.abort.bind(controller);
+    return throttled;
   };
 };

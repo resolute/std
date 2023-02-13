@@ -1,5 +1,5 @@
 // @ts-ignore tsc non-sense
-import { is, string, within } from './coerce.ts';
+import { is, or, string, to, within } from './coerce.ts';
 
 export type MimeTypes = keyof typeof mimeDatabase;
 
@@ -31,7 +31,7 @@ const extDatabase = Object.fromEntries(
 ) as { [K in MimeTypes as (typeof mimeDatabase)[K][number]]: K };
 
 const check = <T>(regex: RegExp, keys: readonly T[], message: string) => (input: unknown) => {
-  const cleaned = string(input).replace(regex, '');
+  const cleaned = to(string)(input).replace(regex, '');
   if (is(within(keys))(cleaned)) {
     return cleaned;
   }

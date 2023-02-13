@@ -4,7 +4,6 @@ import {
   array,
   arrayify,
   boolean,
-  coerce,
   date,
   dateify,
   defined,
@@ -43,11 +42,17 @@ import {
   split,
   string,
   stringify,
+  to,
   trim,
   within,
   wrapError,
   zero,
 } from './coerce.ts';
+
+Deno.test('to', () => {
+  strict(to()(1), 1);
+  strict(to()(undefined), undefined);
+});
 
 Deno.test('wrapError', () => {
   const sampleTypeError = new TypeError('foo');
@@ -63,34 +68,45 @@ Deno.test('wrapError', () => {
 
 Deno.test('is', () => {
   strict(is(number)(1), true);
+  strict(
+    ['foo', ' ', 'bar']
+      .map(to(string, trim, or('')))
+      .filter(is(nonempty))
+      .join(''),
+    'foobar',
+  );
 });
 
 Deno.test('not', () => {
   strict(not(number)('1'), true);
+  strict(is(number)(1), true);
+  strict(not(length(0))(''), false);
+  strict(is(nonempty)(''), false);
+  strict(is(nonempty)('foo'), true);
 });
 
 Deno.test('string', () => {
-  strict(coerce(string)('1'), '1');
-  strict(coerce(stringify)(1), '1');
-  strict(coerce(stringify)(1n), '1');
-  throws(() => coerce(stringify)(true));
-  throws(() => coerce(stringify)(Symbol(1)));
-  throws(() => coerce(stringify)(new Error('foo')));
-  throws(() => coerce(stringify)(new Uint8Array([1, 2, 3])));
-  throws(() => coerce(stringify)(['1']));
-  throws(() => coerce(stringify)(-Infinity));
-  throws(() => coerce(stringify)(null));
-  throws(() => coerce(stringify)(undefined));
-  throws(() => coerce(stringify)({}));
+  strict(to(string)('1'), '1');
+  strict(to(stringify)(1), '1');
+  strict(to(stringify)(1n), '1');
+  throws(() => to(stringify)(true));
+  throws(() => to(stringify)(Symbol(1)));
+  throws(() => to(stringify)(new Error('foo')));
+  throws(() => to(stringify)(new Uint8Array([1, 2, 3])));
+  throws(() => to(stringify)(['1']));
+  throws(() => to(stringify)(-Infinity));
+  throws(() => to(stringify)(null));
+  throws(() => to(stringify)(undefined));
+  throws(() => to(stringify)({}));
   throws(() =>
-    coerce(stringify)({
+    to(stringify)({
       toString() {
         return '1';
       },
     })
   );
   throws(() =>
-    coerce(stringify)({
+    to(stringify)({
       noToStringMethod() {
         return '1';
       },
@@ -99,104 +115,109 @@ Deno.test('string', () => {
 });
 
 Deno.test('nonstring', () => {
-  strict(coerce(not(string))(1), 1);
-  throws(() => coerce(not(string))('foo'));
+  strict(to(not(string))(1), 1);
+  throws(() => to(not(string))('foo'));
 });
 
 Deno.test('trim', () => {
-  strict(coerce(trim)(' \t foo \n \t'), 'foo');
+  strict(to(trim)(' \t foo \n \t'), 'foo');
 });
 
 Deno.test('spaces', () => {
-  strict(coerce(spaces)(`${String.fromCharCode(0x200A)}foo `), ' foo ');
+  strict(to(spaces)(`${String.fromCharCode(0x200A)}foo `), ' foo ');
 });
 
 Deno.test('nonempty', () => {
-  strict(coerce(not(length(0)))(' '), ' ');
-  strict(coerce(nonempty)(' '), ' ');
+  strict(to(not(length(0)))(' '), ' ');
+  strict(to(nonempty)(' '), ' ');
 });
 
 Deno.test('safe', () => {
   strict(
-    coerce(safe)('INSERT INTO `foo` VALUES ("bar")'),
+    to(safe)('INSERT INTO `foo` VALUES ("bar")'),
     'INSERT INTO foo VALUES bar',
   );
 });
 
 Deno.test('proper', () => {
-  strict(coerce(quotes, proper)('abc company'), 'Abc Company');
-  strict(coerce(quotes, proper)('ABC company'), 'ABC Company');
-  strict(coerce(quotes, proper)('john q. o\'donnel, III'), 'John Q O’Donnel, III');
-  strict(coerce(quotes, proper)('VON Trap'), 'von Trap');
+  strict(to(quotes, proper)('abc company'), 'Abc Company');
+  strict(to(quotes, proper)('ABC company'), 'ABC Company');
+  strict(to(quotes, proper)('john q. o\'donnel, III'), 'John Q O’Donnel, III');
+  strict(to(quotes, proper)('VON Trap'), 'von Trap');
 });
 
 Deno.test('postalCodeUs5', () => {
-  strict(coerce(postalCodeUs5)('10001-1234'), '10001');
-  strict(coerce(postalCodeUs5)('07417'), '07417');
-  strict(coerce(postalCodeUs5)('07417-1111'), '07417');
-  throws(() => coerce(postalCodeUs5)('0741'));
+  strict(to(postalCodeUs5)('10001-1234'), '10001');
+  strict(to(postalCodeUs5)('07417'), '07417');
+  strict(to(postalCodeUs5)('07417-1111'), '07417');
+  throws(() => to(postalCodeUs5)('0741'));
   // numbers not allowed because leading 0’s mess things up
-  throws(() => coerce(postalCodeUs5)(10001));
+  throws(() => to(postalCodeUs5)(10001));
 });
 
 Deno.test('defined', () => {
-  strict(coerce(defined)('I am defined'), 'I am defined');
-  throws(() => coerce(defined)(undefined));
+  strict(to(defined)('I am defined'), 'I am defined');
+  throws(() => to(defined)(undefined));
+  const input = [1, 2, undefined, null, 3];
+  const result = input
+    .filter(is(defined));
+  // expectType<number[]>(result);
+  equals(result, [1, 2, 3]);
 });
 
 Deno.test('boolean', () => {
-  strict(coerce(boolean())(undefined), false);
-  strict(coerce(boolean())(' null'), false);
-  strict(coerce(boolean())(null), false);
-  strict(coerce(boolean())(' '), false);
-  strict(coerce(boolean())(false), false);
-  strict(coerce(boolean())('false'), false);
-  strict(coerce(boolean())(NaN), false);
-  strict(coerce(boolean())('0'), false);
-  strict(coerce(boolean())(0), false);
-  strict(coerce(boolean())({}), true);
-  strict(coerce(boolean())(new Error()), true);
-  strict(coerce(boolean())(1), true);
-  strict(coerce(boolean())('foo'), true);
+  strict(to(boolean())(undefined), false);
+  strict(to(boolean())(' null'), false);
+  strict(to(boolean())(null), false);
+  strict(to(boolean())(' '), false);
+  strict(to(boolean())(false), false);
+  strict(to(boolean())('false'), false);
+  strict(to(boolean())(NaN), false);
+  strict(to(boolean())('0'), false);
+  strict(to(boolean())(0), false);
+  strict(to(boolean())({}), true);
+  strict(to(boolean())(new Error()), true);
+  strict(to(boolean())(1), true);
+  strict(to(boolean())('foo'), true);
   const truthy = Symbol('truthy');
   const falsy = Symbol('falsy');
   const nully = Symbol('nully');
   const undefy = Symbol('undefy');
-  strict(coerce(boolean(truthy, falsy, nully, undefy))(true), truthy);
-  strict(coerce(boolean(truthy, falsy, nully, undefy))(false), falsy);
-  strict(coerce(boolean(truthy, falsy, nully, undefy))(null), nully);
-  strict(coerce(boolean(truthy, falsy, nully, undefy))(undefined), undefy);
-  strict(coerce(boolean(undefined))(true), undefined);
-  strict(coerce(boolean(undefined, falsy, nully, undefy))(true), undefined);
-  strict(coerce(boolean(undefined, falsy, nully))(undefined), nully);
-  strict(coerce(boolean(truthy, falsy, nully))(undefined), nully);
-  strict(coerce(boolean(truthy, falsy))(null), falsy);
-  strict(coerce(boolean(truthy, falsy))(undefined), falsy);
+  strict(to(boolean(truthy, falsy, nully, undefy))(true), truthy);
+  strict(to(boolean(truthy, falsy, nully, undefy))(false), falsy);
+  strict(to(boolean(truthy, falsy, nully, undefy))(null), nully);
+  strict(to(boolean(truthy, falsy, nully, undefy))(undefined), undefy);
+  strict(to(boolean(undefined))(true), undefined);
+  strict(to(boolean(undefined, falsy, nully, undefy))(true), undefined);
+  strict(to(boolean(undefined, falsy, nully))(undefined), nully);
+  strict(to(boolean(truthy, falsy, nully))(undefined), nully);
+  strict(to(boolean(truthy, falsy))(null), falsy);
+  strict(to(boolean(truthy, falsy))(undefined), falsy);
 });
 
 Deno.test('iterable', () => {
-  equals(coerce(iterable)(new Set([1, 2, 3])), new Set([1, 2, 3]));
-  throws(() => coerce(iterable)(new WeakSet()));
+  equals(to(iterable)(new Set([1, 2, 3])), new Set([1, 2, 3]));
+  throws(() => to(iterable)(new WeakSet()));
 });
 
 Deno.test('array', () => {
-  equals(coerce(arrayify)(new Map([[1, '1']])), [[1, '1']]);
-  equals(coerce(arrayify)(new Set(['1', '2'])), ['1', '2']);
-  equals(coerce(array)(['1']), ['1']);
+  equals(to(arrayify)(new Map([[1, '1']])), [[1, '1']]);
+  equals(to(arrayify)(new Set(['1', '2'])), ['1', '2']);
+  equals(to(array)(['1']), ['1']);
   // not ['1', '2', '3'] even though Strings are iterable
-  equals(coerce(arrayify)('123'), ['123']);
+  equals(to(arrayify)('123'), ['123']);
   // buffers → array of char codes
-  equals(coerce(arrayify)(new Uint8Array('123'.split('').map((s) => s.charCodeAt(0)))), [
+  equals(to(arrayify)(new Uint8Array('123'.split('').map((s) => s.charCodeAt(0)))), [
     49,
     50,
     51,
   ]);
-  equals(coerce(arrayify)(true), [true]);
-  equals(coerce(arrayify)(undefined), [undefined]);
-  equals(coerce(arrayify)(undefined).filter(is(defined)), []);
+  equals(to(arrayify)(true), [true]);
+  equals(to(arrayify)(undefined), [undefined]);
+  equals(to(arrayify)(undefined).filter(is(defined)), []);
   // WeakSet non-iterable, so it gets wrapped in array
   const weakSet = new WeakSet();
-  equals(coerce(arrayify)(weakSet), [weakSet]);
+  equals(to(arrayify)(weakSet), [weakSet]);
 });
 
 Deno.test('entries', () => {
@@ -214,49 +235,50 @@ Deno.test('pairs', () => {
 });
 
 Deno.test('number', () => {
-  throws(() => coerce(number)(NaN));
-  throws(() => coerce(number)(Infinity));
-  throws(() => coerce(numeric)('foo'));
-  throws(() => coerce(numeric)(''));
-  throws(() => coerce(numeric)('-1.234.5'));
-  throws(() => coerce(positive)(+0));
-  throws(() => coerce(negative)(-0));
-  strict(coerce(numeric)(0o10), 8);
-  strict(coerce(numeric)(0xff), 255);
-  strict(coerce(numeric)(2e3), 2000);
-  strict(coerce(numeric)(1n), 1);
-  strict(coerce(number)(1.1), 1.1);
-  strict(coerce(numeric, positive)('1.2'), 1.2);
-  strict(coerce(numeric)('-1.234'), -1.234);
-  strict(coerce(numeric)('0'), 0);
-  strict(coerce(number, negative)(-0.5), -0.5);
-  strict(coerce(number, negative)(-1), -1);
-  strict(coerce(numeric, negative)('-2.345'), -2.345);
-  strict(coerce(not(zero), integer)(1.2), 1);
-  throws(() => coerce(nonzero, integer)(0));
-  throws(() => coerce(not(zero))(-0));
-  throws(() => coerce(number, not(zero))(''));
+  throws(() => to(number)(NaN));
+  throws(() => to(number)(Infinity));
+  throws(() => to(numeric)('foo'));
+  throws(() => to(numeric)(''));
+  throws(() => to(numeric)('-1.234.5'));
+  throws(() => to(positive)(+0));
+  throws(() => to(negative)(-0));
+  strict(to(numeric)(0o10), 8);
+  strict(to(numeric)(0xff), 255);
+  strict(to(numeric)(2e3), 2000);
+  strict(to(numeric)(1n), 1);
+  strict(to(number)(1.1), 1.1);
+  strict(to(numeric, positive)('1.2'), 1.2);
+  strict(to(numeric)('-1.234'), -1.234);
+  strict(to(numeric)('0'), 0);
+  strict(to(number, negative)(-0.5), -0.5);
+  strict(to(number, negative)(-1), -1);
+  strict(to(numeric, negative)('-2.345'), -2.345);
+  strict(to(not(zero), integer)(1.2), 1);
+  throws(() => to(nonzero, integer)(0));
+  throws(() => to(numeric)(BigInt(Number.MAX_SAFE_INTEGER) + 1n));
+  throws(() => to(not(zero))(-0));
+  throws(() => to(number, not(zero))(''));
 });
 
 Deno.test('object', () => {
-  equals(coerce(object)({ is: 'object' }), { is: 'object' });
-  throws(() => coerce(object)('not an object'));
+  equals(to(object)({ is: 'object' }), { is: 'object' });
+  throws(() => to(object)('not an object'));
 });
 
 Deno.test('func', () => {
   const fn = () => {};
-  strict(coerce(func)(fn), fn);
-  throws(() => coerce(func)({}));
+  strict(to(func)(fn), fn);
+  throws(() => to(func)({}));
 });
 
 Deno.test('instance', () => {
   const Nameless = (function Nameless() {}) as unknown as new () => void;
   Nameless.prototype.name = undefined;
-  assert(coerce(instance(Date))(new Date(1)) instanceof Date);
-  throws(() => coerce(instance(Error))(new Date(2)));
-  throws(() => coerce(instance(Nameless))(new Date(3)));
+  assert(to(instance(Date))(new Date(1)) instanceof Date);
+  throws(() => to(instance(Error))(new Date(2)));
+  throws(() => to(instance(Nameless))(new Date(3)));
   throws(() =>
-    coerce(instance({ foo: 'bar' } as unknown as new () => Record<string, never>))(new Date(4))
+    to(instance({ foo: 'bar' } as unknown as new () => Record<string, never>))(new Date(4))
   );
 });
 
@@ -269,97 +291,101 @@ Deno.test('own', () => {
   equals(own('foo')({ foo: new Date(1) }), { foo: new Date(1) });
   equals(own('message')(new Error('foo')), new Error('foo'));
   throws(() => own('message')(new Date(1)));
-  strict(coerce(object, own('foo'))(foo), foo);
-  throws(() => coerce(object, own('foo'))(bar));
-  throws(() => coerce(object, is(own('foo')))(bar));
-  strict(coerce(own('foo'))(foo), foo);
-  throws(() => coerce(own('foo'))(bar));
-  strict(coerce(is(own('foo')))(foo), foo);
-  throws(() => coerce(is(own('foo')))(bar));
-  throws(() => coerce(not(own('foo')))(foo));
-  strict(coerce(not(own('foo')))(bar), bar);
+  strict(to(object, own('foo'))(foo), foo);
+  throws(() => to(object, own('foo'))(bar));
+  throws(() => to(object, is(own('foo')))(bar));
+  strict(to(own('foo'))(foo), foo);
+  throws(() => to(own('foo'))(bar));
+  strict(to(is(own('foo')))(foo), foo);
+  throws(() => to(is(own('foo')))(bar));
+  throws(() => to(not(own('foo')))(foo));
+  strict(to(not(own('foo')))(bar), bar);
+  const input = [foo, bar];
+  const result = input
+    .filter(is(own('foo')));
 });
 
 Deno.test('limit', () => {
-  equals(coerce(limit(4))(5), 4);
-  strict(coerce(limit(3))('foobar'), 'foo');
-  equals(coerce(limit(2))([1, 2, 3, 4, 5]), [1, 2]);
-  throws(() => coerce(limit(1))({}));
-  throws(() => coerce(limit(0))(null));
+  equals(to(limit(4))(5), 4);
+  strict(to(limit(3))('foobar'), 'foo');
+  equals(to(limit(2))([1, 2, 3, 4, 5]), [1, 2]);
+  const foo = to(limit(2))([1, 2, 3, 4, 5]);
+  throws(() => to(limit(1))({}));
+  throws(() => to(limit(0))(null));
 });
 
 Deno.test('length', () => {
-  equals(coerce(length(3))({ length: 3 }), { length: 3 });
-  strict(coerce(length(3))('bar'), 'bar');
-  equals(coerce(length(3))([1, 2, 3]), [1, 2, 3]);
-  throws(() => coerce(length(3))([1, 2]));
-  throws(() => coerce(length(3))({ length: 4 }));
+  equals(to(length(3))({ length: 3 }), { length: 3 });
+  strict(to(length(3))('bar'), 'bar');
+  equals(to(length(3))([1, 2, 3]), [1, 2, 3]);
+  throws(() => to(length(3))([1, 2]));
+  throws(() => to(length(3))({ length: 4 }));
 });
 
 Deno.test('split', () => {
-  equals(coerce(split())('a,b,,,c d e foo'), ['a', 'b', 'c', 'd', 'e', 'foo']);
-  equals(coerce(split())(',,,,,,   , , '), []);
-  equals(coerce(split())('1\n2\r3'), ['1', '2', '3']);
+  equals(to(split())('a,b,,,c d e foo'), ['a', 'b', 'c', 'd', 'e', 'foo']);
+  equals(to(split())(',,,,,,   , , '), []);
+  equals(to(split())('1\n2\r3'), ['1', '2', '3']);
 });
 
 Deno.test('within', () => {
-  strict(coerce(within(['foo', 'bar']))('foo'), 'foo');
-  throws(() => coerce(within(['foo', 'bar']))('baz'));
+  strict(to(within(['foo', 'bar']))('foo'), 'foo');
+  throws(() => to(within(['foo', 'bar']))('baz'));
 });
 
 Deno.test('luhn', () => {
-  strict(coerce(luhn)('49927398716'), '49927398716');
-  throws(() => coerce(luhn)('49927398717'));
+  strict(to(luhn)('49927398716'), '49927398716');
+  throws(() => to(luhn)('49927398717'));
 });
 
 Deno.test('email', () => {
-  strict(coerce(email)(' Foo@Bar.com'), 'foo@bar.com');
+  strict(to(email)(' Foo@Bar.com'), 'foo@bar.com');
   // basically, `email` just checks for “@” surrounded by alphanumeric
-  throws(() => coerce(email)('foo '));
+  throws(() => to(email)('foo '));
 });
 
 Deno.test('phone', () => {
-  strict(coerce(phone)('+1 (222) 333-4444x555'), '2223334444555');
-  strict(coerce(prettyPhone)('+1 (333) 444-5555'), '(333) 444-5555');
-  strict(coerce(prettyPhone)('+1 (444) 555-6666x777'), '(444) 555-6666 ext 777');
-  strict(coerce(phone10)('+1 (222) 333-4444'), '2223334444');
-  throws(() => coerce(phone10)('+1 (222) 333-444'));
-  throws(() => coerce(phone10)('+1 (222) 333-44444'));
+  strict(to(phone)('+1 (222) 333-4444x555'), '2223334444555');
+  strict(to(prettyPhone)('+1 (333) 444-5555'), '(333) 444-5555');
+  strict(to(prettyPhone)('+1 (444) 555-6666x777'), '(444) 555-6666 ext 777');
+  strict(to(phone10)('+1 (222) 333-4444'), '2223334444');
+  throws(() => to(phone10)('+1 (222) 333-444'));
+  throws(() => to(phone10)('+1 (222) 333-44444'));
 });
 
 Deno.test('date', () => {
-  throws(() => coerce(date)(new Date(0)));
-  throws(() => coerce(dateify)(undefined!));
-  equals(coerce(dateify)(1628623372929), new Date(1628623372929));
+  throws(() => to(date)(new Date(0)));
+  throws(() => to(dateify)(undefined!));
+  equals(to(dateify)(1628623372929), new Date(1628623372929));
   // WARNING: do not use +1 when checking for future. It is possible that
   // `Date.now() + 1` will be the same as `Date.now()` when `future` is
   // executed. Use + 2 when testing for future.
   strict(is(future)(new Date(Date.now() + 2)), true);
   strict(is(past)(new Date(Date.now() - 1)), true);
-  throws(() => coerce(future)(new Date(Date.now() - 1)));
-  throws(() => coerce(past)(new Date(Date.now() + 2)));
+  throws(() => to(future)(new Date(Date.now() - 1)));
+  throws(() => to(past)(new Date(Date.now() + 2)));
 });
 
 Deno.test('chain/nest', () => {
-  const trimNonEmpty = coerce(string, trim, nonempty);
-  const trimNonEmptyOrNull = coerce(string, trim, nonempty, or(null));
-  strict(coerce(trimNonEmpty)('a'), 'a');
-  strict(coerce(trimNonEmpty, string, digits)('a'), '');
-  strict(coerce(trimNonEmpty, or(null))(' '), null);
-  strict(coerce(trimNonEmptyOrNull)(' '), null);
+  const trimNonEmpty = to(string, trim, nonempty);
+  const trimNonEmptyOrNull = to(string, trim, nonempty, or(null));
+  strict(to(trimNonEmpty)('a'), 'a');
+  strict(to(trimNonEmpty, string, digits)('a'), '');
+  strict(to(trimNonEmpty, or(null))(' '), null);
+  strict(to(trimNonEmptyOrNull)(' '), null);
 });
 
 // a default/backup value
 Deno.test('coerce(…, or(undefined))(…)', () => {
   const defaultValue = undefined;
-  strict(coerce(number, or(defaultValue))('foo'), defaultValue);
+  strict(to(number, or(defaultValue))('foo'), defaultValue);
 });
 
 // throw specific Error instance
 Deno.test('coerce(…, or(new Error()))(…)', () => {
   const predefinedError = new Error('this is my error, there are many like it…');
   try {
-    coerce(number, or(predefinedError))('foo');
+    to(number, or(predefinedError))('foo');
   } catch (error) {
     strict(error, predefinedError);
   }

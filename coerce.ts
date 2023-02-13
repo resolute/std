@@ -40,7 +40,7 @@ export const to: Coerce = (...coercers: UnaryFunction[]) => {
  * Alias `to`
  * @see to
  */
-export const coerce = to;
+export const coerce = /* @__PURE__ */ to;
 
 /**
  * Provide a backup value to be used when coercion fails. If `value` is an
@@ -110,18 +110,18 @@ export const not = <A extends UnaryFunction>(coercer: A) => {
     } catch {
       return value as T extends ReturnType<A> ? never : T;
     }
-    throw makeError(value, `something else`);
+    throw exception(value, `something else`);
   };
   return guard as Not<A>;
 };
 
 /**
- * Make uniform `TypeError`s
+ * Construct uniform `TypeError`s
  * @param actual value
  * @param expected value
  * @returns TypeError
  */
-const makeError = (actual: any, expected: string) =>
+const exception = (actual: any, expected: string) =>
   new TypeError(`Expected “${actual}” to be ${expected}.`);
 
 /**
@@ -144,6 +144,7 @@ const guardInPipe = <T extends Is<R> | UnaryFunction, R extends UnaryFunction>(
   }
   return coercer;
 };
+
 //#endregion
 
 //#region Guards
@@ -155,11 +156,11 @@ const guardInPipe = <T extends Is<R> | UnaryFunction, R extends UnaryFunction>(
  * @returns value
  * @throws if value is not `string`
  */
-export const string = <T>(value: T) => {
+export const string = (value: string): string => {
   if (typeof value === 'string') {
     return value;
   }
-  throw makeError(value, 'a string');
+  throw exception(value, 'a string');
 };
 
 /**
@@ -168,11 +169,11 @@ export const string = <T>(value: T) => {
  * @returns value
  * @throws if value is not `number`
  */
-export const number = <T>(value: T): number => {
+export const number = (value: number): number => {
   if (typeof value === 'number' && Number.isFinite(value)) {
     return value;
   }
-  throw makeError(value, 'a number');
+  throw exception(value, 'a finite number');
 };
 
 /**
@@ -181,11 +182,11 @@ export const number = <T>(value: T): number => {
  * @returns value
  * @throws if value is not `bigint`
  */
-export const bigint = <T>(value: T) => {
+export const bigint = (value: bigint): bigint => {
   if (typeof value === 'bigint') {
     return value;
   }
-  throw makeError(value, 'a bigint');
+  throw exception(value, 'a bigint');
 };
 
 /**
@@ -194,13 +195,13 @@ export const bigint = <T>(value: T) => {
  * @returns value
  * @throws if value is not `Date`
  */
-export const date = <T>(value: T) => {
+export const date = (value: Date): Date => {
   try {
     const valid = to(object, instance(Date))(value);
     to(finite, nonzero)(valid.valueOf());
     return valid;
   } catch {
-    throw makeError(value, 'a date');
+    throw exception(value, 'a date');
   }
 };
 
@@ -210,11 +211,11 @@ export const date = <T>(value: T) => {
  * @returns value
  * @throws if value is not `Array`
  */
-export const array = <T, V>(value: Array<T> | V) => {
+export const array = <T extends readonly any[]>(value: T): T => {
   if (Array.isArray(value)) {
-    return value as Array<T>;
+    return value;
   }
-  throw makeError(value, 'an array');
+  throw exception(value, 'an array');
 };
 
 /**
@@ -223,11 +224,11 @@ export const array = <T, V>(value: Array<T> | V) => {
  * @returns value
  * @throws if value is not `Iterable`
  */
-export const iterable = <T extends Iterable<U>, U>(value: T) => {
-  if (is(object)(value) && (Symbol.iterator in value)) {
-    return value as T & Iterable<T>;
+export const iterable = <T extends Iterable<any>>(value: T): T => {
+  if (Symbol.iterator in value) {
+    return value;
   }
-  throw makeError(value, 'iterable');
+  throw exception(value, 'iterable');
 };
 
 /**
@@ -236,11 +237,11 @@ export const iterable = <T extends Iterable<U>, U>(value: T) => {
  * @returns value
  * @throws if value is `undefined` or `null`
  */
-export const defined = <T>(value: T) => {
+export const defined = <T>(value: T): NonNullable<T> => {
   if (typeof value !== 'undefined' && value !== null) {
     return value as NonNullable<T>;
   }
-  throw makeError(value, 'defined');
+  throw exception(value, 'defined');
 };
 
 /**
@@ -249,12 +250,11 @@ export const defined = <T>(value: T) => {
  * @returns value
  * @throws if value is not an `object`
  */
-export const object = <T>(value: T) => {
+export const object = <T>(value: T): NonNullable<T> => {
   if (typeof value === 'object' && value !== null) {
-    // deno-lint-ignore ban-types
-    return value as NonNullable<T & {}>;
+    return value;
   }
-  throw makeError(value, 'an object');
+  throw exception(value, 'an object');
 };
 
 /**
@@ -263,12 +263,11 @@ export const object = <T>(value: T) => {
  * @returns value
  * @throws if value is not an `function`
  */
-export const func = <T>(value: T) => {
+export const func = <T extends Function>(value: T): T => {
   if (typeof value === 'function') {
-    // deno-lint-ignore ban-types
-    return value as T & Function;
+    return value;
   }
-  throw makeError(value, 'a function');
+  throw exception(value, 'a function');
 };
 
 /**
@@ -281,29 +280,36 @@ export const instance = <T extends Constructor>(constructor: T) => (value: unkno
   if (is(func)(constructor) && value instanceof constructor) {
     return value as InstanceType<T>;
   }
-  throw makeError(value, `an instance of ${constructor}`);
+  throw exception(value, `an instance of ${constructor}`);
 };
 
-export const own = <K extends string | number | symbol>(property: K) => <T>(value: T) => {
-  if (Object.prototype.hasOwnProperty.call(value, property)) {
-    return value as T & { [Property in K]: any };
+export const own = <K extends PropertyKey>(property: K) => <T extends {}>(value: T) => {
+  if (Object.hasOwn(value, property)) {
+    return value as
+      & T
+      // Test the intersection of `T` and `{ [property]: unknown }`
+      & Extract<T, { [_ in K]: unknown }> extends never
+      // When it fails, this will throw, so if it passes, then the result is at a minimum `{ [property]: unknown }`
+      ? { [_ in K]: unknown }
+      // Successful path is a union of `T` and `{ [property]: unknown }`
+      : Extract<T, { [_ in K]: unknown }>;
   }
-  throw makeError(value, `an object with own “${String(property)}” property`);
+  throw exception(value, `an object with own “${String(property)}” property`);
 };
+
 //#endregion
 
 //#region Validators
 // -----------------------------------------------------------------------------
 
 /**
- * Finite number
+ * Alias `number`
  * @param value number
  * @returns value
  * @throws if value is not finite
+ * @see number
  */
-export const finite =
-  // to(number, or(new TypeError('Expected a finite number.')));
-  <T>(value: T) => to(number, or(makeError(value, 'a finite number.')))(value);
+export const finite = /* @__PURE__ */ number;
 
 /**
  * Number is 0
@@ -311,18 +317,20 @@ export const finite =
  * @returns value
  * @throws if value is not 0
  */
-export const zero = <T extends number>(value: T) => {
+export const zero = (value: number) => {
   if (value === 0) {
     return value as 0;
   }
-  throw makeError(value, '0');
+  throw exception(value, '0');
 };
 
 /**
  * Alias `not(zero)`
  * @see zero
  */
-export const nonzero = /* @__PURE__ */ not(zero);
+export const nonzero = /* @__PURE__ */ to(not(zero)) as <T extends number>(
+  input: T,
+) => T extends 0 ? never : T;
 
 /**
  * Number > 0
@@ -336,9 +344,9 @@ export const positive = /* @__PURE__ */ to(
     if (value > 0) {
       return value;
     }
-    throw makeError(value, 'a positive number');
+    throw exception(value, 'a positive number');
   },
-);
+) as (input: number) => number;
 
 /**
  * Number < 0
@@ -350,7 +358,7 @@ export const negative = (value: number) =>
   to(
     nonzero,
     not(positive),
-    or(makeError(value, 'a negative number')),
+    or(exception(value, 'a negative number')),
   )(value);
 
 /**
@@ -363,7 +371,7 @@ export const future = (value: Date) => {
   if (value.valueOf() > Date.now()) {
     return value;
   }
-  throw makeError(value, 'in the future');
+  throw exception(value, 'in the future');
 };
 
 /**
@@ -376,7 +384,7 @@ export const past = (value: Date) => {
   if (value.valueOf() < Date.now()) {
     return value;
   }
-  throw makeError(value, 'in the past');
+  throw exception(value, 'in the past');
 };
 
 /**
@@ -395,15 +403,16 @@ export const length = <N extends number>(size: N) =>
   if (value?.length === size) {
     return value as T & { length: N };
   }
-  throw makeError(value, `of length: ${size}`);
+  throw exception(value, `of length: ${size}`);
 };
 
 /**
- * Alias `not(length(0))`
+ * Alias `to(not(length(0)))`
  * @see length
  */
 // `not` kind of messes up the types here. Explicit type definition used:
-export const nonempty = /* @__PURE__ */ not(length(0)) as <T extends { length: number }>(
+// export const nonempty = <T>(value: T) => to(not(length(0)))(value) as T & { length: number };
+export const nonempty = /* @__PURE__ */ to(not(length(0))) as <T extends { length: number }>(
   value: T,
 ) => T;
 
@@ -420,7 +429,7 @@ export const within = <T>(list: readonly T[]) =>
   if (list.indexOf(value as unknown as T) >= 0) {
     return value as V & T;
   }
-  throw makeError(value, `one of ${list}`);
+  throw exception(value, `one of ${list}`);
 };
 
 /**
@@ -442,8 +451,9 @@ export const luhn = (value: string) => {
   if (sum % 10 === 0) {
     return value;
   }
-  throw makeError(value, 'able to pass the Luhn test');
+  throw exception(value, 'able to pass the Luhn test');
 };
+
 //#endregion
 
 //#region Mutators
@@ -455,11 +465,11 @@ export const luhn = (value: string) => {
  * @returns string
  * @throws if value cannot be mutated to `string`
  */
-export const stringify = <T extends string | number | bigint | { length: number }>(value: T) => {
+export const stringify = <T extends string | number | bigint>(value: T) => {
   if (is(finite)(value) || is(bigint)(value)) {
     return value.toString();
   }
-  return string(value);
+  return string(value as string);
 };
 
 /**
@@ -468,7 +478,13 @@ export const stringify = <T extends string | number | bigint | { length: number 
  * @returns number
  * @throws if value cannot be mutated to `number`
  */
-export const numeric = <T extends string | number | bigint | { length: number }>(value: T) => {
+export const numeric = <T extends string | number | bigint>(value: T) => {
+  if (is(bigint)(value)) {
+    if (value > Number.MIN_SAFE_INTEGER && value < Number.MAX_SAFE_INTEGER) {
+      return Number(value);
+    }
+    throw exception(value, 'between SAFE_INTEGER bounds');
+  }
   if (is(finite)(value)) {
     return value;
   }
@@ -477,7 +493,7 @@ export const numeric = <T extends string | number | bigint | { length: number }>
     (value: string) => value.replace(/[^0-9oex.-]/g, ''),
     nonempty,
     (value: string) => finite(Number(value)),
-    or(makeError(value, 'numeric')),
+    or(exception(value, 'numeric')),
   )(value);
 };
 
@@ -488,7 +504,7 @@ export const numeric = <T extends string | number | bigint | { length: number }>
  * @throws if value cannot be mutated to `Date`
  */
 export const dateify = <T extends number | string | Date>(value: T) =>
-  to(date, or(makeError(value, 'a date')))(new Date(value));
+  to(date, or(exception(value, 'a date')))(new Date(value));
 
 /**
  * `boolean` Mutator
@@ -579,7 +595,7 @@ export const entries: Entries = <T extends Iterable<any>>(value: T) => {
   if (is(object)(value)) {
     return Object.entries(value);
   }
-  throw makeError(value, `transformable to entries`);
+  throw exception(value, `transformable to entries`);
 };
 
 /**
@@ -604,16 +620,16 @@ export const pairs = <T extends Iterable<[K, V]>, K, V>(value: T) =>
  */
 export const wrapError: WrapError = (wrapper?: ErrorConstructor) => (value: Error | string) => {
   const wrap = wrapper ?? Error;
+  if (is(string)(value)) {
+    return new wrap(value);
+  }
   if (is(instance(wrap))(value)) {
     return value;
   }
   if (is(instance(Error))(value)) {
-    return new wrap(value.message);
+    return new wrap((value as Error).message);
   }
-  if (is(string)(value)) {
-    return new wrap(value);
-  }
-  throw makeError(value, `string, Error, or ${wrap.name}`);
+  throw exception(value, `string, Error, or ${wrap.name}`);
 };
 
 /**
@@ -775,7 +791,7 @@ export const email = /* @__PURE__ */ to(
     if (/[a-z0-9]@[a-z0-9]/.test(value)) {
       return value;
     }
-    throw makeError(value, 'a valid email address');
+    throw exception(value, 'a valid email address');
   },
 );
 
@@ -798,7 +814,7 @@ export const phone = (value: string) => {
   if (onlyDigits.length >= 10) {
     return onlyDigits;
   }
-  throw makeError(value, 'a valid US phone number');
+  throw exception(value, 'a valid US phone number');
 };
 
 /**
@@ -812,7 +828,7 @@ export const phone10 = (value: string) => {
   if (valid.length === 10) {
     return valid;
   }
-  throw makeError(value, 'a valid US 10-digit phone number');
+  throw exception(value, 'a valid US 10-digit phone number');
 };
 
 /**
@@ -841,7 +857,7 @@ export const postalCodeUs5 = (value: string) =>
     limit(5),
     string,
     length(5),
-    or(makeError(value, 'a valid US postal code')),
+    or(exception(value, 'a valid US postal code')),
   )(value);
 
 /**
@@ -850,25 +866,25 @@ export const postalCodeUs5 = (value: string) =>
  * @param max number
  * @returns function to limit given input
  */
-export const limit = (max: number) =>
+export const limit = <N extends number>(max: N) =>
 /**
  * Limit the value of a `number`, characters in a `string`, or items in an
  * `array`
- * @param value number | string | array
- * @returns number | string | array limited to `max`
+ * @param value
+ * @returns limited to `max`
  * @throws if value is not a number, string, or array
  */
-<T extends (number | string | any[] | readonly any[])>(value: T) => {
+<T>(value: T) => {
   if (is(number)(value)) {
-    return Math.min(value, max) as T;
+    return Math.min(value, max) as Limit<N, T>;
   }
   if (is(string)(value)) {
-    return value.slice(0, max) as T;
+    return value.slice(0, max) as Limit<N, T>;
   }
   if (is(array)(value)) {
-    return value.slice(0, max) as T;
+    return value.slice(0, max) as Limit<N, T>;
   }
-  throw makeError(value, `able to be limited to ${max}`);
+  throw exception(value, `able to be limited to ${max}`);
 };
 
 /**
@@ -894,7 +910,7 @@ export const split = (separator = /[,\r\n\s]+/g, limit?: number) =>
   value.split(separator, limit)
     .map(spaces) // remove irregular spaces
     .map(trim)
-    .filter(nonempty);
+    .filter(is(nonempty));
 
 //#endregion
 
@@ -902,8 +918,6 @@ export const split = (separator = /[,\r\n\s]+/g, limit?: number) =>
 // -----------------------------------------------------------------------------
 
 export type Constructor = new (...args: any[]) => any;
-
-export type UnaryFunction<P = any, R = any> = (value: P) => R;
 
 export type IterableOrNot<T> = T extends Iterable<infer U> ? U : T;
 
@@ -924,15 +938,26 @@ export interface Entries {
   ): I[] | [K, V][];
 }
 
-export interface Is<A extends UnaryFunction> {
-  (value: unknown): value is ReturnType<A>;
-  [SymbolGuardTest]: <T extends ReturnType<A>>(value: T) => T;
-}
+export type TupleSplit<T, N extends number, O extends readonly any[] = readonly []> =
+  O['length'] extends N ? [O, T]
+    : T extends readonly [infer F, ...infer R] ? TupleSplit<readonly [...R], N, readonly [...O, F]>
+    : [O, T];
 
-export interface Not<A extends UnaryFunction> {
-  <T>(value: T): value is T extends ReturnType<A> ? never : T;
-  [SymbolGuardTest]: <T>(value: T) => T extends ReturnType<A> ? never : T;
-}
+export type TakeFirst<T extends readonly any[], N extends number> = TupleSplit<T, N>[0];
+
+export type SkipFirst<T extends readonly any[], N extends number> = TupleSplit<T, N>[1];
+
+export type TupleSlice<T extends readonly any[], S extends number, E extends number> = SkipFirst<
+  TakeFirst<T, E>,
+  S
+>;
+
+export type Limit<N extends number, T> = T extends number ? number
+  : T extends (string | any[]) ? T & { length: N }
+  : T extends readonly any[] ? TakeFirst<T, N>
+  : never;
+
+export type UnaryFunction = (value: any) => any;
 
 export type UnaryReturnType<T extends UnaryFunction> = T extends Is<infer R> ? ReturnType<R>
   : (T extends Not<infer S> ? ReturnType<S> : ReturnType<T>);
@@ -941,19 +966,29 @@ export type UnaryExtends<A extends UnaryFunction, B extends UnaryFunction> =
   UnaryReturnType<A> extends UnaryReturnType<B> ? UnaryReturnType<A>
     : UnaryReturnType<B>;
 
+export interface Is<A extends UnaryFunction> {
+  <T>(value: T): value is Extract<T, ReturnType<A>>;
+  [SymbolGuardTest]: <T extends ReturnType<A>>(value: T) => T;
+}
+
+export interface Not<A extends UnaryFunction> {
+  <T>(value: T): value is T extends ReturnType<A> ? never : T;
+  [SymbolGuardTest]: <T>(value: T) => T extends ReturnType<A> ? never : T;
+}
+
 export interface Otherwise<T> {
   value: T;
   [SymbolOtherwise]: boolean;
 }
 
 export interface ToResult<I, O> {
-  <Input>(value: Input): Input extends I ? (Input extends O ? Input : O) : never;
+  <T>(value: T): T extends I ? (T extends O ? T : O) : (unknown extends T ? O : never);
 }
 
 export interface OrResult<I, O, Y> {
-  <Input>(
-    value: Input,
-  ): (Input extends I ? (Input extends O ? Input : O) : never) | Exclude<Y, Error>;
+  <T>(value: T):
+    | (T extends I ? (T extends O ? T : O) : (unknown extends T ? O : never))
+    | Exclude<Y, Error>;
 }
 
 export interface To {
@@ -969,35 +1004,20 @@ export interface To {
     A extends UnaryFunction,
     B extends (value: UnaryReturnType<A>) => any,
     C extends (value: UnaryExtends<A, B>) => any,
-  >(
-    a: A,
-    b: B,
-    c: C,
-  ): ToResult<Parameters<A>[0], UnaryReturnType<C>>;
+  >(a: A, b: B, c: C): ToResult<Parameters<A>[0], UnaryReturnType<C>>;
   <
     A extends UnaryFunction,
     B extends (value: UnaryReturnType<A>) => any,
     C extends (value: UnaryExtends<A, B>) => any,
     D extends (value: UnaryExtends<B, C>) => any,
-  >(
-    a: A,
-    b: B,
-    c: C,
-    d: D,
-  ): ToResult<Parameters<A>[0], UnaryReturnType<D>>;
+  >(a: A, b: B, c: C, d: D): ToResult<Parameters<A>[0], UnaryReturnType<D>>;
   <
     A extends UnaryFunction,
     B extends (value: UnaryReturnType<A>) => any,
     C extends (value: UnaryExtends<A, B>) => any,
     D extends (value: UnaryExtends<B, C>) => any,
     E extends (value: UnaryExtends<C, D>) => any,
-  >(
-    a: A,
-    b: B,
-    c: C,
-    d: D,
-    e: E,
-  ): ToResult<Parameters<A>[0], UnaryReturnType<E>>;
+  >(a: A, b: B, c: C, d: D, e: E): ToResult<Parameters<A>[0], UnaryReturnType<E>>;
   <
     A extends UnaryFunction,
     B extends (value: UnaryReturnType<A>) => any,
@@ -1005,14 +1025,7 @@ export interface To {
     D extends (value: UnaryExtends<B, C>) => any,
     E extends (value: UnaryExtends<C, D>) => any,
     F extends (value: UnaryExtends<D, E>) => any,
-  >(
-    a: A,
-    b: B,
-    c: C,
-    d: D,
-    e: E,
-    f: F,
-  ): ToResult<Parameters<A>[0], UnaryReturnType<F>>;
+  >(a: A, b: B, c: C, d: D, e: E, f: F): ToResult<Parameters<A>[0], UnaryReturnType<F>>;
   <
     A extends UnaryFunction,
     B extends (value: UnaryReturnType<A>) => any,
@@ -1021,15 +1034,7 @@ export interface To {
     E extends (value: UnaryExtends<C, D>) => any,
     F extends (value: UnaryExtends<D, E>) => any,
     G extends (value: UnaryExtends<E, F>) => any,
-  >(
-    a: A,
-    b: B,
-    c: C,
-    d: D,
-    e: E,
-    f: F,
-    g: G,
-  ): ToResult<Parameters<A>[0], UnaryReturnType<G>>;
+  >(a: A, b: B, c: C, d: D, e: E, f: F, g: G): ToResult<Parameters<A>[0], UnaryReturnType<G>>;
   <
     A extends UnaryFunction,
     B extends (value: UnaryReturnType<A>) => any,
@@ -1039,19 +1044,8 @@ export interface To {
     F extends (value: UnaryExtends<D, E>) => any,
     G extends (value: UnaryExtends<E, F>) => any,
     H extends (value: UnaryExtends<F, G>) => any,
-  >(
-    a: A,
-    b: B,
-    c: C,
-    d: D,
-    e: E,
-    f: F,
-    g: G,
-    h: H,
-  ): ToResult<Parameters<A>[0], UnaryReturnType<H>>;
-  <AZ extends UnaryFunction>(
-    ...az: AZ[]
-  ): ToResult<Parameters<AZ>[0], UnaryReturnType<AZ>>;
+  >(a: A, b: B, c: C, d: D, e: E, f: F, g: G, h: H): ToResult<Parameters<A>[0], UnaryReturnType<H>>;
+  <AZ extends UnaryFunction>(...az: AZ[]): ToResult<Parameters<AZ>[0], UnaryReturnType<AZ>>;
 }
 
 export interface Coerce extends To {
@@ -1164,6 +1158,7 @@ export interface Coerce extends To {
     h: H,
   ): OrResult<Parameters<A>[0], UnaryReturnType<H>, I['value']>;
 }
+
 //#endregion
 
 export default to;
