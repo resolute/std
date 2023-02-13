@@ -11,51 +11,40 @@ declare global {
   }
 }
 
-// // THIS HAD NO IMPACT ON PERFORMANCE
-// const debounceRaf = <T extends (...args: any[]) => any>(fn: T) => {
-//   let lock = 0;
-//   // let debugDebounceCount = 0;
-//   return (...args: Parameters<T>) => {
-//     if (lock === 0) {
-//       lock = requestAnimationFrame(() => {
-//         fn(...args);
-//         lock = 0;
-//         // console.log(`debounced ${debugDebounceCount} calls`);
-//         // debugDebounceCount = 0;
-//       });
-//       // } else {
-//       //   debugDebounceCount++;
-//     }
-//   };
-// };
-
 const progress = (element: HTMLElement, viewportHeight: number, scrollY: number) => {
-  const { top, height } = element.getBoundingClientRect();
+  const { top, height, bottom } = element.getBoundingClientRect();
+  const documentHeight = document.documentElement.scrollHeight;
   const aboveTheFoldAdjustment = Math.max(0, viewportHeight - (scrollY + top));
-  return (viewportHeight - top - aboveTheFoldAdjustment) /
-    (viewportHeight + height - aboveTheFoldAdjustment);
-  // intro: (viewportHeight - top) / viewportHeight
-  // main (sort of works): viewportHeight - height - top) / height
-  // outro: (viewportHeight - (top + height)) / viewportHeight
+  const belowTheFoldAdjustment = Math.max(
+    0,
+    viewportHeight - (documentHeight - (scrollY + bottom)),
+  );
+  const progress = (viewportHeight - top - aboveTheFoldAdjustment) /
+    (viewportHeight + height - aboveTheFoldAdjustment - belowTheFoldAdjustment);
+  return progress;
 };
 
 const elements = new Set<HTMLElement>();
 
 const fire = () => {
-  const viewportHeight = viewport().height; // instead of window.innerHeight
-  for (const element of elements) {
-    const detail = progress(element, viewportHeight, scrollY);
-    if (detail >= 0 && detail <= 1) {
+  requestAnimationFrame(() => {
+    const viewportHeight = viewport().height; // instead of window.innerHeight
+    const queue: [HTMLElement, number][] = [];
+    for (const element of elements) {
+      const detail = progress(element, viewportHeight, scrollY);
+      if (detail >= 0 && detail <= 1) {
+        queue.push([element, detail]);
+      }
+    }
+    for (const [element, detail] of queue) {
       const event: ParallaxEvent = new CustomEvent('parallax', {
         bubbles: false,
         detail,
       });
       element.dispatchEvent(event);
     }
-  }
+  });
 };
-
-// const fireDebounced = debounceRaf(fire);
 
 /**
  * Enable "parallax" event dispatching on `element`. Listeners bound with
