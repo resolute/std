@@ -52,6 +52,12 @@
       "default": "./intl.js",
       "types": "./intl.ts"
     },
+    "./iterable": {
+      "import": "./iterable.js",
+      "require": "./iterable.cjs",
+      "default": "./iterable.js",
+      "types": "./iterable.ts"
+    },
     "./math": {
       "import": "./math.js",
       "require": "./math.cjs",
