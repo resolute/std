@@ -1,4 +1,4 @@
-import { equals, strict } from './deps.test.ts';
+import { equals, strict, test } from './assert.test.ts';
 
 import {
   getDomCookies,
@@ -9,11 +9,11 @@ import {
   stringify,
 } from './cookie.ts';
 
-Deno.test('parse', () => {
+test('parse', () => {
   equals(parse('a=b;b=%3D'), { a: 'b', b: '=' });
 });
 
-Deno.test('stringify', () => {
+test('stringify', () => {
   strict(stringify('key', 'value'), 'key=value;samesite=none;secure');
   strict(
     stringify('key', 'value', {
@@ -29,33 +29,28 @@ Deno.test('stringify', () => {
   );
 });
 
-declare global {
-  interface document {
-    cookie: string;
-  }
-}
+Object.defineProperty(globalThis, 'document', {
+  configurable: true,
+  value: { cookie: '' },
+});
 
-// @ts-ignore TODO reference global document in Deno
-globalThis.document = { cookie: '' };
-
-Deno.test('setDomCookie', () => {
+test('setDomCookie', () => {
   setDomCookie('key', 'value');
-  // @ts-ignore TODO reference global document in Deno
   strict(document.cookie, 'key=value;samesite=none;secure');
 });
 
-Deno.test('getDomCookies', () => {
+test('getDomCookies', () => {
   equals(getDomCookies('a=b;b=%3D'), { a: 'b', b: '=' });
 });
 
-Deno.test('getRequestCookies', () => {
+test('getRequestCookies', () => {
   const request = new Request('file:///', {
     headers: new Headers({ cookie: 'a=b;b=%3D' }),
   });
   equals(getRequestCookies(request), { a: 'b', b: '=' });
 });
 
-Deno.test('setResponseCookie', () => {
+test('setResponseCookie', () => {
   const response = new Response('/');
   setResponseCookie(response, 'a', 'b');
   setResponseCookie(response, 'b', '=');

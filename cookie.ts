@@ -12,16 +12,8 @@ import {
   string,
   trim,
   within,
-  // @ts-ignore tsc non-sense
 } from './coerce.ts';
-// @ts-ignore tsc non-sense
 import { isDefinedTuple } from './misc.ts';
-
-declare global {
-  interface document {
-    cookie: string;
-  }
-}
 
 export interface CookieOptions {
   expires?: ConstructorParameters<typeof Date>[0];
@@ -33,7 +25,10 @@ export interface CookieOptions {
   httponly?: boolean;
 }
 
-export const parse = (cookieString: string, decoder = decodeURIComponent) => {
+export const parse = (
+  cookieString: string,
+  decoder = decodeURIComponent,
+): Record<string, string> => {
   const sanitizer = coerce(decoder, trim, nonempty, or(undefined));
   const splitPair = (pair: string) => {
     const [key, value] = pair.split('=', 2);
@@ -49,7 +44,7 @@ export const stringify = (
   key: string,
   value: string | null,
   options: CookieOptions & { encoder?: typeof encodeURIComponent } = {},
-) => {
+): string => {
   const encoder = options.encoder || encodeURIComponent;
   const keyEncoded = coerce(
     string,
@@ -96,12 +91,12 @@ export const stringify = (
     .join(';');
 };
 
-// @ts-ignore TODO reference global document in Deno
-export const getDomCookies = (cookieString = document.cookie, decoder = decodeURIComponent) =>
-  parse(cookieString, decoder);
+export const getDomCookies = (
+  cookieString = document.cookie,
+  decoder = decodeURIComponent,
+): Record<string, string> => parse(cookieString, decoder);
 
-export const setDomCookie = (...args: Parameters<typeof stringify>) => {
-  // @ts-ignore TODO reference global document in Deno
+export const setDomCookie = (...args: Parameters<typeof stringify>): void => {
   document.cookie = stringify(...args);
 };
 
@@ -109,9 +104,14 @@ export const setDomCookie = (...args: Parameters<typeof stringify>) => {
  * Parse request cookies and as an object. Optionally, provide a custom decoder
  * (decodeURIComponent is the default).
  */
-export const getRequestCookies = (request: Request, decoder = decodeURIComponent) =>
-  parse(coerce(string, or(''))(request.headers.get('cookie')), decoder);
+export const getRequestCookies = (
+  request: Request,
+  decoder = decodeURIComponent,
+): Record<string, string> => parse(coerce(string, or(''))(request.headers.get('cookie')), decoder);
 
-export const setResponseCookie = (response: Response, ...args: Parameters<typeof stringify>) => {
+export const setResponseCookie = (
+  response: Response,
+  ...args: Parameters<typeof stringify>
+): void => {
   response.headers.append('set-cookie', stringify(...args));
 };

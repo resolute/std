@@ -1,28 +1,68 @@
 name: Deno CI
-on: [push, pull_request]
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
 jobs:
   test:
+    name: Test (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
-        deno: [canary]
-        os: [macos-latest, ubuntu-latest, windows-2019]
+        os: [ubuntu-latest, macos-latest, windows-latest]
+
     steps:
-      - name: Clone repository
-        uses: actions/checkout@v3
-      - name: Set up Deno ${{ matrix.deno }}
-        uses: denoland/setup-deno@v1
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up Deno
+        uses: denoland/setup-deno@v2
         with:
-          deno-version: ${{ matrix.deno }}
-      - name: Run tests
-        run: deno test --parallel --allow-net --coverage=coverage/tmp --ignore=node_modules
-      - name: Generate coverage
-        run: deno coverage coverage/tmp --lcov > coverage/lcov.info; sed -i.bak -E 's/SF:.*\/([^/]+\.ts)/SF:\1/' coverage/lcov.info; rm -f coverage/lcov.info.bak
-        if: matrix.os == 'ubuntu-latest' && matrix.deno == 'canary'
+          deno-version: latest
+          cache: true
+
+      - name: Set up Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          package-manager-cache: false
+
+      - name: Check formatting
+        run: deno fmt --check deno.json .gitignore *.ts dom/*.ts
+
+      - name: Lint
+        run: deno lint
+
+      - name: Type check
+        run: deno task check
+
+      - name: Test
+        run: deno task test
+
+      - name: Test with Node
+        run: deno task test:node
+
       - name: Upload coverage
-        uses: codecov/codecov-action@v3
-        if: matrix.os == 'ubuntu-latest' && matrix.deno == 'canary'
+        if: matrix.os == 'ubuntu-latest'
+        uses: codecov/codecov-action@v5
         with:
           fail_ci_if_error: true
-          files: lcov.info
-          directory: coverage
+          files: coverage/lcov.info
+
+      - name: Pack npm tarball
+        run: deno task clean && deno task pack
+
+      - name: Verify npm tarball contents
+        shell: bash
+        run: |
+          test -f resolute-std-*.tgz
+          tar -tzf resolute-std-*.tgz
+          ! tar -tzf resolute-std-*.tgz | grep -E '(^|/)(promise-alt|node_modules|coverage)/'
+          ! tar -tzf resolute-std-*.tgz | grep -E '(^|/)[^/]+\.ts$' | grep -v '\.d\.ts$'
+          ! tar -tzf resolute-std-*.tgz | grep -E '\.(cjs|mjs|map)$'

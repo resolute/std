@@ -1,4 +1,4 @@
-export default (element: Element, selector: string) => {
+export default (element: Element, selector: string): Element | null => {
   if (element.matches(selector)) {
     return element;
   }

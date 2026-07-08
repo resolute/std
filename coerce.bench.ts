@@ -11,7 +11,9 @@ Deno.bench('FAIL is(string)(1)', { group: 'string fail' }, () => {
 Deno.bench('FAIL try { string(1) } catch {}', { group: 'string fail' }, () => {
   try {
     string(1 as unknown as string);
-  } catch {}
+  } catch {
+    // Expected failure path.
+  }
 });
 
 Deno.bench('FAIL (input) => typeof input === "string"', { group: 'string fail' }, () => {
@@ -30,7 +32,9 @@ Deno.bench('PASS is(string)("foo")', { group: 'string pass' }, () => {
 Deno.bench('PASS try { string("foo") } catch {}', { group: 'string pass' }, () => {
   try {
     string('foo');
-  } catch {}
+  } catch {
+    // Unexpected, but keep this comparable to the failure-path benchmark.
+  }
 });
 
 Deno.bench('PASS (input) => typeof input === "string"', { group: 'string pass' }, () => {

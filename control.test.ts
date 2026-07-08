@@ -1,8 +1,8 @@
-import { assert, strict, throwsAsync } from './deps.test.ts';
+import { assert, strict, test, throwsAsync } from './assert.test.ts';
 
 import { debounce, once, retry, sleep, throttle } from './control.ts';
 
-Deno.test('once', () => {
+test('once', () => {
   let value = 0;
   const incr = (by = 1) => value += by;
   strict(once(incr)(5), 5);
@@ -22,35 +22,35 @@ const fauxFail = (passOnRun = 3) => {
   };
 };
 
-Deno.test('retry:pass', async () => {
+test('retry:pass', async () => {
   const result = await retry(fauxFail(3))('foo');
   strict(result, 'foo');
 });
 
-Deno.test('retry:fail', async () => {
+test('retry:fail', async () => {
   await throwsAsync(() => retry(fauxFail(4))('foo'));
 });
 
-Deno.test('sleep', async () => {
+test('sleep', async () => {
   const slept = await sleep(50, (then: number) => Date.now() - then, Date.now());
   assert(slept >= 50, `${slept} >= 50`);
 });
 
-Deno.test('sleep/abort', async () => {
+test('sleep/abort', async () => {
   const controller = new AbortController();
   const bomb = sleep(10, controller.signal);
   setTimeout(() => controller.abort(new Error('Gotta go!')), 5);
   await throwsAsync(() => bomb, Error, 'Gotta go!');
 });
 
-Deno.test('sleep/pre-abort', async () => {
+test('sleep/pre-abort', async () => {
   const controller = new AbortController();
   controller.abort(new Error('Gotta go!'));
   const bomb = sleep(10, controller.signal);
   await throwsAsync(() => bomb, Error, 'Gotta go!');
 });
 
-Deno.test('debounce', async () => {
+test('debounce', async () => {
   let state = 0;
   const fn = (value: number) => state += value;
   const debounced = debounce(fn, 50);
@@ -63,7 +63,7 @@ Deno.test('debounce', async () => {
   strict(state, 1);
 });
 
-Deno.test('debounce/abort', async () => {
+test('debounce/abort', async () => {
   let state = 0;
   const controller = new AbortController();
   const fn = (value: number) => state += value;
@@ -75,7 +75,7 @@ Deno.test('debounce/abort', async () => {
   strict(state, 0);
 });
 
-Deno.test('debounce/pre-abort', async () => {
+test('debounce/pre-abort', async () => {
   let state = 0;
   const controller = new AbortController();
   controller.abort();
@@ -86,7 +86,7 @@ Deno.test('debounce/pre-abort', async () => {
   strict(state, 0);
 });
 
-Deno.test('throttle', async () => {
+test('throttle', async () => {
   const totalRuns = 25;
   const limit = 5;
   const interval = 60;
@@ -99,7 +99,7 @@ Deno.test('throttle', async () => {
   assert(duration <= totalTime + interval);
 });
 
-Deno.test('throttle/abort', async () => {
+test('throttle/abort', async () => {
   const limit = 1;
   const interval = 10_000;
   const start = Date.now();

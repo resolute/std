@@ -20,7 +20,7 @@ export default <T extends (fromClickEvent: boolean) => Promise<any>>(
   name: string,
   actual: T,
   facadeDomString: string,
-) => {
+): (fromClickEvent: boolean) => Promise<any> => {
   const elements = htmlToElements(facadeDomString);
   const element = elements[elements.length - 1]!;
   const loadActual = (fromClickEvent: boolean) => {

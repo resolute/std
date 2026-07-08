@@ -1,14 +1,11 @@
-// @ts-ignore tsc non-sense
 import loaded from './loaded.ts';
-// @ts-ignore tsc non-sense
 import { randomIntInclusive } from '../math.ts';
-// @ts-ignore tsc non-sense
 import { defer } from '../control.ts';
 
 /**
  * Create and append `<script>` to DOM with async and defer.
  */
-export const script = (src: string, timeout = 0, jitter = 1000) => {
+export const script = (src: string, timeout = 0, jitter = 1000): HTMLScriptElement => {
   const element = document.createElement('script');
   element.async = true;
   element.defer = true;
@@ -25,7 +22,7 @@ export const script = (src: string, timeout = 0, jitter = 1000) => {
  * Create and append `<script>` to DOM, but registers a one-time listener that
  * resolves the returned Promise.
  */
-export const scriptP = (...args: Parameters<typeof script>) => {
+export const scriptP = (...args: Parameters<typeof script>): Promise<Event> => {
   const [promise, resolve] = defer<Event>();
   const element = script(...args);
   element.addEventListener('load', resolve, { once: true });

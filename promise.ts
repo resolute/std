@@ -7,9 +7,12 @@ export interface Keeper<R> {
   timer: number | undefined;
 }
 
-const empty = Symbol('Empty');
+const empty = /* @__PURE__ */ Symbol('Empty');
 
-const defaultStorage = new WeakMap<() => Promise<unknown>, unknown>();
+const defaultStorage: WeakMap<() => Promise<unknown>, unknown> = /* @__PURE__ */ new WeakMap<
+  () => Promise<unknown>,
+  unknown
+>();
 
 /**
  * Promise Keeper: caching for promises.
@@ -109,7 +112,7 @@ const keep = <R>(fn: () => Promise<R>) => {
   };
 };
 
-export const keeper = <R>(fn: () => Promise<R>, storage = defaultStorage) => {
+export const keeper = <R>(fn: () => Promise<R>, storage = defaultStorage): Keeper<R> => {
   if (!storage.has(fn)) {
     storage.set(fn, keep(fn));
   }

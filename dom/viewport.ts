@@ -1,12 +1,20 @@
-const ruler = document.createElement('div');
-ruler.style.width = '100vw';
-ruler.style.height = '100vh';
-ruler.style.position = 'fixed';
-ruler.style.top = '0';
-ruler.style.left = '0';
-ruler.style.pointerEvents = 'none';
-ruler.style.opacity = '0';
-document.body.appendChild(ruler);
+let ruler: HTMLDivElement | undefined;
+
+const getRuler = (): HTMLDivElement => {
+  if (ruler) {
+    return ruler;
+  }
+  ruler = document.createElement('div');
+  ruler.style.width = '100vw';
+  ruler.style.height = '100vh';
+  ruler.style.position = 'fixed';
+  ruler.style.top = '0';
+  ruler.style.left = '0';
+  ruler.style.pointerEvents = 'none';
+  ruler.style.opacity = '0';
+  document.body.appendChild(ruler);
+  return ruler;
+};
 
 /**
  * iOS (and others) change the size of `window.innerHeight` when the address
@@ -30,4 +38,4 @@ document.body.appendChild(ruler);
  * This is the jarring effect that can be mitigated by using this workaround vs
  * `window.innerHeight`.
  */
-export default () => ruler.getBoundingClientRect();
+export default (): DOMRect => getRuler().getBoundingClientRect();

@@ -1,50 +1,41 @@
-// @ts-ignore tsc non-sense
 import { instance, nonempty, or, string, to } from '../coerce.ts';
-// @ts-ignore tsc non-sense
 import { fetchThrow500, readResponseError } from '../http.ts';
-// @ts-ignore tsc non-sense
 import { retry } from '../control.ts';
 
 export type SuccessEvent = CustomEvent<Response>;
 export type FailureEvent = CustomEvent<Error>;
 
-declare global {
-  interface HTMLElementEventMap {
-    'success': SuccessEvent;
-    'failure': FailureEvent;
-  }
-}
-
-const submitting = (inputs: Iterable<HTMLInputElement>, submit: HTMLInputElement) => {
+const submitting = (inputs: Iterable<HTMLInputElement>, submit: HTMLInputElement): void => {
   for (const input of inputs) {
     input.setAttribute('readonly', '');
   }
   submit.setAttribute('disabled', '');
 };
 
-const finished = (inputs: Iterable<HTMLInputElement>, submit: HTMLInputElement) => {
+const finished = (inputs: Iterable<HTMLInputElement>, submit: HTMLInputElement): void => {
   for (const input of inputs) {
     input.removeAttribute('readonly');
   }
   submit.removeAttribute('disabled');
 };
 
-const clearError = (form: HTMLFormElement) => {
+const clearError = (form: HTMLFormElement): void => {
   const errorElement = form.querySelector('.error');
   if (errorElement) {
     errorElement.remove();
   }
 };
 
-const showError = (submit: HTMLInputElement) => (error: unknown) => {
-  const { message } = to(
-    instance(Error),
-    or(new Error('Unexpected error encountered. Please try again.')),
-  )(error);
-  submit.insertAdjacentHTML('beforebegin', `<p class="error">${message}</p>`);
-};
+const showError =
+  (submit: HTMLInputElement): (error: unknown) => void => (error: unknown): void => {
+    const { message } = to(
+      instance(Error),
+      or(new Error('Unexpected error encountered. Please try again.')),
+    )(error);
+    submit.insertAdjacentHTML('beforebegin', `<p class="error">${message}</p>`);
+  };
 
-const handler = async (form: HTMLFormElement) => {
+const handler = async (form: HTMLFormElement): Promise<void> => {
   const inputs = form.querySelectorAll('input');
   const submit = form.querySelector<HTMLInputElement>('input[type="submit"]')!;
   const method = to(string, nonempty, or('POST'))(form.getAttribute('method')) as string;
@@ -73,7 +64,7 @@ const handler = async (form: HTMLFormElement) => {
   }
 };
 
-export default (form: HTMLFormElement | null) => {
+export default (form: HTMLFormElement | null): void => {
   if (!form) {
     return;
   }

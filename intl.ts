@@ -7,7 +7,7 @@ export const conjunction: Intl.ListFormat['format'] = (list) =>
   listFormat
     .format(list);
 
-const pluralRules = /* @__PURE__ */ new Intl.PluralRules();
+const pluralRules: Intl.PluralRules = /* @__PURE__ */ new Intl.PluralRules();
 
-export const plural = (ordinal: number, singular = '', plural = 's') =>
+export const plural = (ordinal: number, singular = '', plural = 's'): string =>
   pluralRules.select(ordinal) === 'one' ? singular : plural;

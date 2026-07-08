@@ -1,4 +1,4 @@
-import { equals, throwsAsync } from './deps.test.ts';
+import { equals, test, throwsAsync } from './assert.test.ts';
 import { all, defined, limit, LimitReached, stream, transform, unique } from './iterable.ts';
 
 async function* foo() {
@@ -34,16 +34,16 @@ async function* baz() {
 //   throw new Error('Fake out!');
 // }
 
-Deno.test('iterable/all', async () => {
+test('iterable/all', async () => {
   equals(await all(foo()), ['A', 'B', 'C', 'D', 'E']);
 });
 
-Deno.test('iterable/limit', async () => {
+test('iterable/limit', async () => {
   equals(await all(limit(0)(foo())), []);
   equals(await all(limit(2)(foo())), ['A', 'B']);
 });
 
-Deno.test('iterable/limit/abort', async () => {
+test('iterable/limit/abort', async () => {
   const controller = new AbortController();
   equals(await all(limit(2, controller)(foo())), ['A', 'B']);
   throwsAsync(
@@ -56,21 +56,21 @@ Deno.test('iterable/limit/abort', async () => {
   );
 });
 
-Deno.test('iterable/unique', async () => {
+test('iterable/unique', async () => {
   equals(
     await all(unique((input: string) => input)(bar())),
     ['A', 'B', 'C'],
   );
 });
 
-Deno.test('iterable/defined', async () => {
+test('iterable/defined', async () => {
   equals(
     await all(defined(baz())),
     ['A', 'C', 'E'],
   );
 });
 
-Deno.test('iterable/stream', async () => {
+test('iterable/stream', async () => {
   equals(await all(stream(foo())), ['A', 'B', 'C', 'D', 'E']);
   equals(await all(stream(['A', 'B', 'C', 'D', 'E'])), ['A', 'B', 'C', 'D', 'E']);
   {
@@ -82,7 +82,7 @@ Deno.test('iterable/stream', async () => {
   }
 });
 
-Deno.test('iterable/transform', async () => {
+test('iterable/transform', async () => {
   const nextChar = async (input: string) => String.fromCharCode(input.charCodeAt(0) + 1);
   equals(
     await all(transform(foo(), nextChar)),

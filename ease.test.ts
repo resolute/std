@@ -1,4 +1,4 @@
-import { strict } from './deps.test.ts';
+import { strict, test } from './assert.test.ts';
 
 import {
   easeInBack,
@@ -32,7 +32,7 @@ import {
   easeOutSine,
 } from './ease.ts';
 
-Deno.test('ease', () => {
+test('ease', () => {
   [
     easeInQuad,
     easeOutQuad,

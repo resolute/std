@@ -1,8 +1,8 @@
-import { equals, strict } from './deps.test.ts';
+import { equals, strict, test } from './assert.test.ts';
 
 import { clamp, clamp01, divide, randomIntExclusiveMax, range, scale } from './math.ts';
 
-Deno.test('clamp', () => {
+test('clamp', () => {
   strict(clamp01(1.01), 1);
   strict(clamp01(-0), 0);
   strict(clamp()(-0.01), 0);
@@ -10,21 +10,21 @@ Deno.test('clamp', () => {
   strict(clamp(5, 10)(11), 10);
 });
 
-Deno.test('range', () => {
+test('range', () => {
   const ranger = range(0, 10);
   strict(ranger(0.5), 5);
   strict(ranger(1.5), 15);
   strict(ranger(-0.5), -5);
 });
 
-Deno.test('scale', () => {
+test('scale', () => {
   const scaler = scale(0, 10);
   strict(scaler(5), 0.5);
   strict(scaler(15), 1.5);
   strict(scaler(-5), -0.5);
 });
 
-Deno.test('divide', () => {
+test('divide', () => {
   equals(
     [1, 2, 3]
       .map(divide())
@@ -42,7 +42,7 @@ Deno.test('divide', () => {
   );
 });
 
-Deno.test('randomIntExclusiveMax', () => {
+test('randomIntExclusiveMax', () => {
   const alwaysMin = randomIntExclusiveMax(0, 1);
   strict(alwaysMin, 0);
   const value = randomIntExclusiveMax(0, 2);

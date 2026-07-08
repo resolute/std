@@ -15,7 +15,7 @@
  * @param min lower bound
  * @param max upper bound
  */
-export const range = (min: number, max: number) =>
+export const range = (min: number, max: number): (percent: number) => number =>
 /**
  * Calculate the number in the defined range (`min`, `max`) specified by
  * `percent`.
@@ -24,7 +24,7 @@ export const range = (min: number, max: number) =>
  * values outside of the `min`–`max` range.
  * @param percent fraction
  */
-(percent: number) => min + (max - min) * percent;
+(percent: number): number => min + (max - min) * percent;
 
 /**
  * Define a scaling function to calculate the percentage of `value` relative to
@@ -40,12 +40,12 @@ export const range = (min: number, max: number) =>
  * @param min lower bound
  * @param max upper bound
  */
-export const scale = (min: number, max: number) =>
+export const scale = (min: number, max: number): (value: number) => number =>
 /**
  * Calculate the percentage of `value` relative to `min` and `max`.
  * @param value relative to `min` and `max`
  */
-(value: number) => (value - min) / (max - min);
+(value: number): number => (value - min) / (max - min);
 
 /**
  * Define a clamping function to keep a `value` bound to the `min` and
@@ -60,14 +60,14 @@ export const scale = (min: number, max: number) =>
  * @param min optional lower bound. Default 0
  * @param max optional upper bound. Default 1
  */
-export const clamp = (min = 0, max = 1) =>
+export const clamp = (min = 0, max = 1): (value: number) => number =>
 /**
  * Clamp a `value` to the bounds defined by `min` and `max`
  * @param value to be bounded to `min` and `max`
  */
-(value: number) => Math.min(max, Math.max(min, value));
+(value: number): number => Math.min(max, Math.max(min, value));
 
-export const clamp01 = clamp();
+export const clamp01: (value: number) => number = /* @__PURE__ */ clamp();
 
 /**
  * Generate a scale for each member of an array with (optional) `overlap`.
@@ -90,11 +90,13 @@ export const clamp01 = clamp();
  * ```
  * @param overlap multiplier factor of overlap (1 means no overlap)
  */
-export const divide = (overlap = 1) =>
+export const divide = (
+  overlap = 1,
+): <T>(value: T, index: number, array: T[]) => readonly [T, (value: number) => number] =>
 /**
  * Use with array.map() to generate the divided scales.
  */
-<T>(value: T, index: number, array: T[]) => {
+<T>(value: T, index: number, array: T[]): readonly [T, (value: number) => number] => {
   const unit = 1 / array.length;
   const min = index * unit;
   const max = min + unit * overlap;
@@ -104,11 +106,11 @@ export const divide = (overlap = 1) =>
 /**
  * Generate a random number **inclusively** between `min` and `max`.
  */
-export const randomIntInclusive = (min: number, max: number) =>
+export const randomIntInclusive = (min: number, max: number): number =>
   Math.floor(Math.random() * (max - min + 1) + min);
 
 /**
  * Generate a random number **exclusively** between `min` and `max`.
  */
-export const randomIntExclusiveMax = (min: number, max: number) =>
+export const randomIntExclusiveMax = (min: number, max: number): number =>
   Math.floor(Math.random() * (max - min) + min);

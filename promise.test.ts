@@ -1,4 +1,4 @@
-import { strict, throws } from './deps.test.ts';
+import { strict, test, throws } from './assert.test.ts';
 
 import { keeper } from './promise.ts';
 import { sleep } from './control.ts';
@@ -12,7 +12,7 @@ const expensive = (duration = 10, state = 0) => async () => {
   return state;
 };
 
-Deno.test('keeper', async () => {
+test('keeper', async () => {
   const kept = keeper(expensive());
   // newly initialized should not contain any stale data
   throws(kept.stale);
@@ -43,7 +43,7 @@ Deno.test('keeper', async () => {
   strict(await fourthInvocation, 4);
 });
 
-Deno.test('keeper + interval', async () => {
+test('keeper + interval', async () => {
   const kept = keeper(expensive());
   strict(await kept.get(), 1);
   kept.start(100);

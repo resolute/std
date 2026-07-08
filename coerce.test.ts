@@ -1,4 +1,4 @@
-import { assert, equals, strict, throws } from './deps.test.ts';
+import { assert, equals, strict, test, throws } from './assert.test.ts';
 
 import {
   array,
@@ -49,12 +49,12 @@ import {
   zero,
 } from './coerce.ts';
 
-Deno.test('to', () => {
+test('to', () => {
   strict(to()(1), 1);
   strict(to()(undefined), undefined);
 });
 
-Deno.test('wrapError', () => {
+test('wrapError', () => {
   const sampleTypeError = new TypeError('foo');
   const invalidErrorConstructor = ((arg: string) => new Error(arg)) as unknown as ErrorConstructor;
   strict(wrapError()(sampleTypeError), sampleTypeError);
@@ -66,7 +66,7 @@ Deno.test('wrapError', () => {
   throws(() => wrapError(invalidErrorConstructor)('foo'));
 });
 
-Deno.test('is', () => {
+test('is', () => {
   strict(is(number)(1), true);
   strict(
     ['foo', ' ', 'bar']
@@ -77,7 +77,7 @@ Deno.test('is', () => {
   );
 });
 
-Deno.test('not', () => {
+test('not', () => {
   strict(not(number)('1'), true);
   strict(is(number)(1), true);
   strict(not(length(0))(''), false);
@@ -85,7 +85,7 @@ Deno.test('not', () => {
   strict(is(nonempty)('foo'), true);
 });
 
-Deno.test('string', () => {
+test('string', () => {
   strict(to(string)('1'), '1');
   strict(to(stringify)(1), '1');
   strict(to(stringify)(1n), '1');
@@ -114,39 +114,39 @@ Deno.test('string', () => {
   );
 });
 
-Deno.test('nonstring', () => {
+test('nonstring', () => {
   strict(to(not(string))(1), 1);
   throws(() => to(not(string))('foo'));
 });
 
-Deno.test('trim', () => {
+test('trim', () => {
   strict(to(trim)(' \t foo \n \t'), 'foo');
 });
 
-Deno.test('spaces', () => {
+test('spaces', () => {
   strict(to(spaces)(`${String.fromCharCode(0x200A)}foo `), ' foo ');
 });
 
-Deno.test('nonempty', () => {
+test('nonempty', () => {
   strict(to(not(length(0)))(' '), ' ');
   strict(to(nonempty)(' '), ' ');
 });
 
-Deno.test('safe', () => {
+test('safe', () => {
   strict(
     to(safe)('INSERT INTO `foo` VALUES ("bar")'),
     'INSERT INTO foo VALUES bar',
   );
 });
 
-Deno.test('proper', () => {
+test('proper', () => {
   strict(to(quotes, proper)('abc company'), 'Abc Company');
   strict(to(quotes, proper)('ABC company'), 'ABC Company');
   strict(to(quotes, proper)("john q. o'donnel, III"), 'John Q O’Donnel, III');
   strict(to(quotes, proper)('VON Trap'), 'von Trap');
 });
 
-Deno.test('postalCodeUs5', () => {
+test('postalCodeUs5', () => {
   strict(to(postalCodeUs5)('10001-1234'), '10001');
   strict(to(postalCodeUs5)('07417'), '07417');
   strict(to(postalCodeUs5)('07417-1111'), '07417');
@@ -155,7 +155,7 @@ Deno.test('postalCodeUs5', () => {
   throws(() => to(postalCodeUs5)(10001));
 });
 
-Deno.test('defined', () => {
+test('defined', () => {
   strict(to(defined)('I am defined'), 'I am defined');
   throws(() => to(defined)(undefined));
   const input = [1, 2, undefined, null, 3];
@@ -165,7 +165,7 @@ Deno.test('defined', () => {
   equals(result, [1, 2, 3]);
 });
 
-Deno.test('boolean', () => {
+test('boolean', () => {
   strict(to(boolean())(undefined), false);
   strict(to(boolean())(' null'), false);
   strict(to(boolean())(null), false);
@@ -195,12 +195,12 @@ Deno.test('boolean', () => {
   strict(to(boolean(truthy, falsy))(undefined), falsy);
 });
 
-Deno.test('iterable', () => {
+test('iterable', () => {
   equals(to(iterable)(new Set([1, 2, 3])), new Set([1, 2, 3]));
   throws(() => to(iterable)(new WeakSet()));
 });
 
-Deno.test('array', () => {
+test('array', () => {
   equals(to(arrayify)(new Map([[1, '1']])), [[1, '1']]);
   equals(to(arrayify)(new Set(['1', '2'])), ['1', '2']);
   equals(to(array)(['1']), ['1']);
@@ -220,21 +220,21 @@ Deno.test('array', () => {
   equals(to(arrayify)(weakSet), [weakSet]);
 });
 
-Deno.test('entries', () => {
+test('entries', () => {
   equals(entries(new Map([[1, 2], [3, 4]])), [[1, 2], [3, 4]]);
   equals(entries({ foo: 1, bar: 2 }), [['foo', 1], ['bar', 2]]);
   equals(entries(new Set([1, 2, 3])), [1, 2, 3]);
   throws(() => entries(() => {}));
 });
 
-Deno.test('pairs', () => {
+test('pairs', () => {
   equals(pairs(new Map([[1, 2], [3, 4]])), [[1, 2], [3, 4]]);
   equals(pairs(entries({ foo: 1, bar: 2 })), [['foo', 1], ['bar', 2]]);
   equals(pairs([[1, 2, 3, 4], [5, 6]] as [number, number][]), [[1, 2], [5, 6]]);
   equals(pairs(new Set([1, 2, 3]) as unknown as Map<number, number>), []);
 });
 
-Deno.test('number', () => {
+test('number', () => {
   throws(() => to(number)(NaN));
   throws(() => to(number)(Infinity));
   throws(() => to(numeric)('foo'));
@@ -260,18 +260,18 @@ Deno.test('number', () => {
   throws(() => to(number, not(zero))(''));
 });
 
-Deno.test('object', () => {
+test('object', () => {
   equals(to(object)({ is: 'object' }), { is: 'object' });
   throws(() => to(object)('not an object'));
 });
 
-Deno.test('func', () => {
+test('func', () => {
   const fn = () => {};
   strict(to(func)(fn), fn);
   throws(() => to(func)({}));
 });
 
-Deno.test('instance', () => {
+test('instance', () => {
   const Nameless = (function Nameless() {}) as unknown as new () => void;
   Nameless.prototype.name = undefined;
   assert(to(instance(Date))(new Date(1)) instanceof Date);
@@ -282,7 +282,7 @@ Deno.test('instance', () => {
   );
 });
 
-Deno.test('own', () => {
+test('own', () => {
   const foo = { foo: 'foo' };
   const bar = { bar: 'bar' };
   throws(() => own('foo')({}));
@@ -305,7 +305,7 @@ Deno.test('own', () => {
     .filter(is(own('foo')));
 });
 
-Deno.test('limit', () => {
+test('limit', () => {
   equals(to(limit(4))(5), 4);
   strict(to(limit(3))('foobar'), 'foo');
   equals(to(limit(2))([1, 2, 3, 4, 5]), [1, 2]);
@@ -314,7 +314,7 @@ Deno.test('limit', () => {
   throws(() => to(limit(0))(null));
 });
 
-Deno.test('length', () => {
+test('length', () => {
   equals(to(length(3))({ length: 3 }), { length: 3 });
   strict(to(length(3))('bar'), 'bar');
   equals(to(length(3))([1, 2, 3]), [1, 2, 3]);
@@ -322,29 +322,29 @@ Deno.test('length', () => {
   throws(() => to(length(3))({ length: 4 }));
 });
 
-Deno.test('split', () => {
+test('split', () => {
   equals(to(split())('a,b,,,c d e foo'), ['a', 'b', 'c', 'd', 'e', 'foo']);
   equals(to(split())(',,,,,,   , , '), []);
   equals(to(split())('1\n2\r3'), ['1', '2', '3']);
 });
 
-Deno.test('within', () => {
+test('within', () => {
   strict(to(within(['foo', 'bar']))('foo'), 'foo');
   throws(() => to(within(['foo', 'bar']))('baz'));
 });
 
-Deno.test('luhn', () => {
+test('luhn', () => {
   strict(to(luhn)('49927398716'), '49927398716');
   throws(() => to(luhn)('49927398717'));
 });
 
-Deno.test('email', () => {
+test('email', () => {
   strict(to(email)(' Foo@Bar.com'), 'foo@bar.com');
   // basically, `email` just checks for “@” surrounded by alphanumeric
   throws(() => to(email)('foo '));
 });
 
-Deno.test('phone', () => {
+test('phone', () => {
   strict(to(phone)('+1 (222) 333-4444x555'), '2223334444555');
   strict(to(prettyPhone)('+1 (333) 444-5555'), '(333) 444-5555');
   strict(to(prettyPhone)('+1 (444) 555-6666x777'), '(444) 555-6666 ext 777');
@@ -353,20 +353,17 @@ Deno.test('phone', () => {
   throws(() => to(phone10)('+1 (222) 333-44444'));
 });
 
-Deno.test('date', () => {
+test('date', () => {
   throws(() => to(date)(new Date(0)));
   throws(() => to(dateify)(undefined!));
   equals(to(dateify)(1628623372929), new Date(1628623372929));
-  // WARNING: do not use +1 when checking for future. It is possible that
-  // `Date.now() + 1` will be the same as `Date.now()` when `future` is
-  // executed. Use + 2 when testing for future.
-  strict(is(future)(new Date(Date.now() + 2)), true);
-  strict(is(past)(new Date(Date.now() - 1)), true);
-  throws(() => to(future)(new Date(Date.now() - 1)));
-  throws(() => to(past)(new Date(Date.now() + 2)));
+  strict(is(future)(new Date(Date.now() + 1_000)), true);
+  strict(is(past)(new Date(Date.now() - 1_000)), true);
+  throws(() => to(future)(new Date(Date.now() - 1_000)));
+  throws(() => to(past)(new Date(Date.now() + 1_000)));
 });
 
-Deno.test('chain/nest', () => {
+test('chain/nest', () => {
   const trimNonEmpty = to(string, trim, nonempty);
   const trimNonEmptyOrNull = to(string, trim, nonempty, or(null));
   strict(to(trimNonEmpty)('a'), 'a');
@@ -376,13 +373,13 @@ Deno.test('chain/nest', () => {
 });
 
 // a default/backup value
-Deno.test('coerce(…, or(undefined))(…)', () => {
+test('coerce(…, or(undefined))(…)', () => {
   const defaultValue = undefined;
   strict(to(number, or(defaultValue))('foo'), defaultValue);
 });
 
 // throw specific Error instance
-Deno.test('coerce(…, or(new Error()))(…)', () => {
+test('coerce(…, or(new Error()))(…)', () => {
   const predefinedError = new Error('this is my error, there are many like it…');
   try {
     to(number, or(predefinedError))('foo');

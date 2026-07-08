@@ -1,17 +1,19 @@
-// @ts-ignore tsc non-sense
 import { randomIntInclusive } from './math.ts';
 
 /**
  * Create and return a new promise along with its resolve and reject parameters.
  */
-export const defer = <T>() => {
-  let resolve: (value: T | PromiseLike<T>) => void;
-  let reject: (reason?: unknown) => void;
+export const defer = <T>(): readonly [
+  Promise<T>,
+  (value: T | PromiseLike<T>) => void,
+  (reason?: unknown) => void,
+] => {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  let reject!: (reason?: unknown) => void;
   const promise = new Promise<T>((_resolve, _reject) => {
     resolve = _resolve;
     reject = _reject;
   });
-  // @ts-ignore resolve/reject assigned in Promise body
   return [promise, resolve, reject] as const;
 };
 
@@ -112,7 +114,7 @@ export const sleep: Sleep = (delay = 0, ...input) => {
  * | 4   |  800 | 1600 | 1560 |
  * | 5   | 1600 | 3200 | 1696 |
  */
-const delay = (attempt: number) => randomIntInclusive(100, 200) * (2 ** (attempt - 1));
+const delay = (attempt: number): number => randomIntInclusive(100, 200) * (2 ** (attempt - 1));
 
 /**
  * Logic that decides whether to perform a retry or not. To stop retrying,
@@ -148,7 +150,7 @@ export type RetryOptions = Partial<typeof retryDefaults & { signal: AbortSignal 
 export const retry = <T extends (...args: any[]) => Promise<any>>(
   fn: T,
   options: RetryOptions = {},
-) => {
+): T => {
   const { signal, retries, delay, retryOn } = { ...retryDefaults, ...options };
   let attempt = 0;
   const retry = (async (...args: Parameters<T>) => {
@@ -181,7 +183,7 @@ export const debounce = <T extends (...args: any[]) => any>(
   fn: T,
   threshold: number,
   signal?: AbortSignal,
-) => {
+): T => {
   let timeout = 0;
   const clearTimer = () => {
     if (timeout) {
@@ -214,11 +216,14 @@ export type ThrottledFunction<T extends (...args: any[]) => any> = T & {
  * @param interval milliseconds
  * @returns wrapped throttled function
  */
-export const throttle = (limit: number, interval: number) => {
+export const throttle = (
+  limit: number,
+  interval: number,
+): <T extends (...args: any[]) => any>(fn: T) => ThrottledFunction<T> => {
   const queue = new Map<number, (reason?: unknown) => void>();
   let currentTick = 0;
   let activeCount = 0;
-  const getDelay = () => {
+  const getDelay = (): number => {
     const now = Date.now();
     if ((now - currentTick) > interval) {
       activeCount = 1;
@@ -233,7 +238,7 @@ export const throttle = (limit: number, interval: number) => {
     }
     return Math.max(0, currentTick - now);
   };
-  return <T extends (...args: any[]) => any>(fn: T) => {
+  return <T extends (...args: any[]) => any>(fn: T): ThrottledFunction<T> => {
     const controller = new AbortController();
     const { signal } = controller;
     signal.addEventListener('abort', () => {
@@ -245,7 +250,7 @@ export const throttle = (limit: number, interval: number) => {
     });
     const throttled = ((...args: any[]) => {
       const [promise, resolve, reject] = defer<ReturnType<T>>();
-      const execute = () => {
+      const execute = (): void => {
         resolve(fn(...args));
         queue.delete(timeout);
       };

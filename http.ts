@@ -6,11 +6,12 @@ import {
   or,
   string,
   to,
+  type ToResult,
   within,
-  // @ts-ignore tsc non-sense
 } from './coerce.ts';
-// @ts-ignore tsc non-sense
 import { conjunction } from './intl.ts';
+
+type CaptureStackTrace = (targetObject: object, constructorOpt?: Function) => void;
 
 /**
  * HttpError extends Error and adds a `status` property to be used when sending the HTTP response.
@@ -27,14 +28,15 @@ export class HttpError extends Error {
     super(message);
     this.status = status;
     this.name = 'HttpError';
-    // @ts-ignore tsc barks at Error.captureStackTrace, but this is safe
-    if (Error.captureStackTrace) {
-      // @ts-ignore tsc barks at Error.captureStackTrace, but this is safe
-      Error.captureStackTrace(this, this.constructor);
+    const captureStackTrace = (Error as ErrorConstructor & {
+      captureStackTrace?: CaptureStackTrace;
+    }).captureStackTrace;
+    if (captureStackTrace) {
+      captureStackTrace(this, this.constructor);
     }
   }
 
-  override toString() {
+  override toString(): string {
     return this.message;
   }
 }
@@ -43,7 +45,7 @@ export class HttpError extends Error {
  * Return the `status` of a HttpError, 500 of a `Error`, or otherwise undefined
  * if the value is not an Error.
  */
-export const statusCodeFromError = (value: unknown) => {
+export const statusCodeFromError = (value: unknown): number | undefined => {
   if (value instanceof Error) {
     return (value as HttpError).status || 500;
   }
@@ -60,7 +62,7 @@ export const statusCodeFromError = (value: unknown) => {
  * // '{"message":"Error: foo"}'
  * ```
  */
-export const replaceErrors = (_key: string, value: unknown) => {
+export const replaceErrors = (_key: string, value: unknown): unknown => {
   if (value instanceof Error) {
     return {
       message: value.toString(),
@@ -72,18 +74,21 @@ export const replaceErrors = (_key: string, value: unknown) => {
 /**
  * Request.method must be within `list`.
  */
-export const method = <T extends string[]>(list: T) => (request: Request) => {
-  to(
-    within(arrayify(list)),
-    or(new HttpError(`Method must be within [${list.join(', ')}]`, 405)),
-  )(request.method);
-  return request;
-};
+export const method =
+  <T extends string[]>(list: T): (request: Request) => Request => (request: Request): Request => {
+    to(
+      within(arrayify(list)),
+      or(new HttpError(`Method must be within [${list.join(', ')}]`, 405)),
+    )(request.method);
+    return request;
+  };
 
 /**
  * Categorize Request or Response Content-Type as json, form, text, or blob.
  */
-export const categorizeContentType = (input: Request | Response) => {
+export const categorizeContentType = (
+  input: Request | Response,
+): 'json' | 'form' | 'text' | 'blob' => {
   const type = to(string, or(''))(input.headers.get('content-type'));
   if (type.includes('application/json')) {
     return 'json';
@@ -100,23 +105,24 @@ export const categorizeContentType = (input: Request | Response) => {
 /**
  * Request or Response Content Type “Category” must be within `list`.
  */
-export const contentTypeCategory =
-  (list: ReturnType<typeof categorizeContentType>[]) => (input: Request | Response) => {
-    to(
-      categorizeContentType,
-      within(list),
-      or(new HttpError(`Content-Type category must be ${conjunction(list)}`, 415)),
-    )(input);
-    return input;
-  };
+export const contentTypeCategory = (
+  list: ReturnType<typeof categorizeContentType>[],
+): (input: Request | Response) => Request | Response =>
+(input: Request | Response): Request | Response => {
+  to(
+    categorizeContentType,
+    within(list),
+    or(new HttpError(`Content-Type category must be ${conjunction(list)}`, 415)),
+  )(input);
+  return input;
+};
 
 /**
  * Compound validation of a request that is method:POST and contains JSON or
  * form data.
  */
-export const validDataPostRequest = /* @__PURE__ */ to(
-  // @ts-ignore compiler may not see Request in global context
-  instance(globalThis.Request),
+export const validDataPostRequest: ToResult<unknown, Request | Response> = /* @__PURE__ */ to(
+  instance(Request),
   method(['POST']),
   contentTypeCategory(['json', 'form']),
 );
@@ -124,7 +130,7 @@ export const validDataPostRequest = /* @__PURE__ */ to(
 /**
  * Respond to client with JSON
  */
-export const jsonResponse = (payload?: unknown, status = 200) => {
+export const jsonResponse = (payload?: unknown, status = 200): Response => {
   if (payload instanceof Response) {
     return payload;
   }
@@ -143,7 +149,7 @@ export const jsonResponse = (payload?: unknown, status = 200) => {
  * Invoke the correct Request/Response body reading method
  * (json/text/formData/arrayBuffer) based on the content-type header.
  */
-export const readBody = async (input: Request | Response) => {
+export const readBody = async (input: Request | Response): Promise<any> => {
   if (input.body === null) {
     return null;
   }
@@ -163,7 +169,7 @@ export const readBody = async (input: Request | Response) => {
  * Cancel the body. Typically used when you are finished with or don’t care
  * about a fetch response.
  */
-export const cancelBody = <T extends Body>(input: T) => {
+export const cancelBody = <T extends Body>(input: T): T => {
   input.body?.cancel();
   return input;
 };
@@ -171,7 +177,7 @@ export const cancelBody = <T extends Body>(input: T) => {
 /**
  * Read/craft an Error from a response.
  */
-export const readResponseError = async (response: Response) => {
+export const readResponseError = async (response: Response): Promise<HttpError> => {
   const data = await response.json().catch(() => ({})) as any;
   if (data && data.message) {
     return new HttpError(data.message, response.status);
@@ -183,7 +189,10 @@ export const readResponseError = async (response: Response) => {
 /**
  * `fetch` does not throw on response.status. `fetchThrow` does :)
  */
-export const fetchThrow = async (status: number, ...args: Parameters<typeof fetch>) => {
+export const fetchThrow = async (
+  status: number,
+  ...args: Parameters<typeof fetch>
+): Promise<Response> => {
   const response = await fetch(...args);
   if (response.status >= status) {
     throw await readResponseError(response);
@@ -194,7 +203,7 @@ export const fetchThrow = async (status: number, ...args: Parameters<typeof fetc
 /**
  * Only pass if the Response.ok === true
  */
-export const fetchOk = async (...args: Parameters<typeof fetch>) => {
+export const fetchOk = async (...args: Parameters<typeof fetch>): Promise<Response> => {
   const response = await fetch(...args);
   if (!response.ok) {
     throw await readResponseError(response);
@@ -205,7 +214,10 @@ export const fetchOk = async (...args: Parameters<typeof fetch>) => {
 /**
  * Only pass if the Response.status is in the list of status(es).
  */
-export const fetchPass = async (status: number | number[], ...args: Parameters<typeof fetch>) => {
+export const fetchPass = async (
+  status: number | number[],
+  ...args: Parameters<typeof fetch>
+): Promise<Response> => {
   const response = await fetch(...args);
   if (not(within(arrayify(status)))(response.status)) {
     throw await readResponseError(response);
@@ -213,4 +225,7 @@ export const fetchPass = async (status: number | number[], ...args: Parameters<t
   return response;
 };
 
-export const fetchThrow500 = /* @__PURE__ */ fetchThrow.bind(null, 500);
+export const fetchThrow500: (
+  input: RequestInfo | URL,
+  init?: RequestInit | undefined,
+) => Promise<Response> = /* @__PURE__ */ fetchThrow.bind(null, 500);

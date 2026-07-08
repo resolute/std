@@ -2,11 +2,13 @@
 ._*
 *~
 node_modules
+dist
 *.cjs
 *.mjs
 *.js
 *.js.map
 *.d.ts
+*.tgz
 .nyc_output
 coverage
 deno.lock

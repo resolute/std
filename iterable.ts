@@ -1,5 +1,7 @@
 import { defined as _defined, is } from './coerce.ts';
 
+type CaptureStackTrace = (targetObject: object, constructorOpt?: Function) => void;
+
 /**
  * LimitReached extends RangeError and can be used to identify when an
  * AsyncIterator consumer limit was reached.
@@ -8,10 +10,11 @@ export class LimitReached extends RangeError {
   constructor(...args: ConstructorParameters<typeof RangeError>) {
     super(...args);
     this.name = 'LimitReached';
-    // @ts-ignore tsc barks at Error.captureStackTrace, but this is safe
-    if (Error.captureStackTrace) {
-      // @ts-ignore tsc barks at Error.captureStackTrace, but this is safe
-      Error.captureStackTrace(this, this.constructor);
+    const captureStackTrace = (Error as ErrorConstructor & {
+      captureStackTrace?: CaptureStackTrace;
+    }).captureStackTrace;
+    if (captureStackTrace) {
+      captureStackTrace(this, this.constructor);
     }
   }
 }
@@ -23,7 +26,9 @@ export type AsyncIterableType<T> = T extends AsyncIterable<infer U> ? U : never;
  * @param asyncIterable
  * @returns array of all `yield`ed items of an AsyncIterable
  */
-export async function all<T extends AsyncIterable<any>>(asyncIterable: T) {
+export async function all<T extends AsyncIterable<any>>(
+  asyncIterable: T,
+): Promise<Awaited<AsyncIterableType<T>>[]> {
   const array: AsyncIterableType<T>[] = [];
   for await (const item of asyncIterable) {
     array.push(item);
@@ -36,8 +41,15 @@ export async function all<T extends AsyncIterable<any>>(asyncIterable: T) {
  * AbortController if provided.
  * @param limit
  * @param controller
+ * @throws LimitReached if the limit is reached and an AbortController is
+ * provided
  */
-export function limit(limit = Infinity, controller?: AbortController) {
+export function limit(
+  limit = Infinity,
+  controller?: AbortController,
+): <T extends AsyncIterable<any>>(
+  asyncIterable: T,
+) => AsyncGenerator<Awaited<AsyncIterableType<T>>, void, unknown> {
   return async function* limiter<T extends AsyncIterable<any>>(asyncIterable: T) {
     let count = 0;
     if (limit === 0) {
@@ -59,7 +71,9 @@ export function limit(limit = Infinity, controller?: AbortController) {
  * @param iterable
  * @yields values that are not null/undefined
  */
-export async function* defined<T>(iterable: AsyncIterable<T> | ReadableStream<T>) {
+export async function* defined<T>(
+  iterable: AsyncIterable<T> | ReadableStream<T>,
+): AsyncGenerator<NonNullable<Awaited<T>>, void, unknown> {
   for await (const item of iterable) {
     const result = await item;
     if (is(_defined)(result)) {
@@ -74,7 +88,10 @@ export async function* defined<T>(iterable: AsyncIterable<T> | ReadableStream<T>
  * @param db optionally, pass in an object that will be used as the unique test database.
  * @returns an AsyncGenerator that will only yield unique values
  */
-export function unique<T>(makeUniqueKey: (input: T) => string, db: Record<string, T[]> = {}) {
+export function unique<T>(
+  makeUniqueKey: (input: T) => string,
+  db: Record<string, T[]> = {},
+): <G extends AsyncIterable<T>>(gen: G) => AsyncGenerator<AsyncIterableType<G>, void, unknown> {
   return async function* uniquer<G extends AsyncIterable<T>>(gen: G) {
     for await (const item of gen) {
       const key = makeUniqueKey(item);
@@ -143,7 +160,7 @@ export function transform<Input, Output>(
   iterable: Iterable<Input> | AsyncIterable<Input>,
   transform: (input: Input) => Promise<Output>,
   strategy?: QueuingStrategy,
-) {
+): ReadableStream<Promise<Output>> {
   return stream(iterable, strategy)
     .pipeThrough(
       new TransformStream<Input, Promise<Output>>(

@@ -11,8 +11,8 @@ import {
   spaces,
   string,
   to,
+  type ToResult,
   trim,
-  // @ts-ignore tsc non-sense
 } from './coerce.ts';
 
 export type MapNonNullable<T> = { [K in keyof T]: NonNullable<T[K]> };
@@ -25,7 +25,7 @@ export type MapKeys<A, B> = {
   [K in keyof A as A[K] extends PropertyKey ? A[K] : never]: K extends keyof B ? B[K] : never;
 };
 
-export const properName = /* @__PURE__ */ to(
+export const properName: ToResult<string, string> = /* @__PURE__ */ to(
   string,
   spaces,
   trim,
@@ -36,9 +36,14 @@ export const properName = /* @__PURE__ */ to(
   string,
 );
 
-export const cleanEmail = /* @__PURE__ */ to(string, email, limit(100), string);
+export const cleanEmail: ToResult<string, string> = /* @__PURE__ */ to(
+  string,
+  email,
+  limit(100),
+  string,
+);
 
-export const cleanPhone = /* @__PURE__ */ to(string, prettyPhone);
+export const cleanPhone: ToResult<string, string> = /* @__PURE__ */ to(string, prettyPhone);
 
 /**
  * Use as an array `.filter` to remove any duplicate items.
@@ -47,7 +52,8 @@ export const cleanPhone = /* @__PURE__ */ to(string, prettyPhone);
  * @param array
  * @returns array with unique items
  */
-export const unique = <T>(value: T, index: number, array: T[]) => array.indexOf(value) === index;
+export const unique = <T>(value: T, index: number, array: T[]): boolean =>
+  array.indexOf(value) === index;
 
 /**
  * Type guard against any tuples containing `undefined` or `null`.
@@ -65,7 +71,7 @@ export const isDefinedTuple = <T extends readonly any[]>(
 export const mapTuple = <
   A extends {},
   MapFn extends ([a, b]: readonly [PropertyKey, any]) => readonly [any, any],
->(a: A, map: MapFn) =>
+>(a: A, map: MapFn): any =>
   Object.fromEntries(
     Object.entries(a)
       .map(map)

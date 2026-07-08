@@ -1,26 +1,86 @@
 {
+  "name": "@resolute/std",
+  "version": "0.2.1",
+  "description": "Standard TypeScript Development",
+  "license": "ISC",
+  "exports": {
+    "./coerce": "./coerce.ts",
+    "./color": "./color.ts",
+    "./control": "./control.ts",
+    "./cookie": "./cookie.ts",
+    "./ease": "./ease.ts",
+    "./http": "./http.ts",
+    "./intl": "./intl.ts",
+    "./iterable": "./iterable.ts",
+    "./math": "./math.ts",
+    "./mime": "./mime.ts",
+    "./misc": "./misc.ts",
+    "./promise": "./promise.ts",
+    "./dom/bg-color-match": "./dom/bg-color-match.ts",
+    "./dom/closest-inclusive": "./dom/closest-inclusive.ts",
+    "./dom/facade": "./dom/facade.ts",
+    "./dom/form": "./dom/form.ts",
+    "./dom/loaded": "./dom/loaded.ts",
+    "./dom/parallax": "./dom/parallax.ts",
+    "./dom/script": "./dom/script.ts",
+    "./dom/video": "./dom/video.ts",
+    "./dom/viewport": "./dom/viewport.ts"
+  },
+  "tasks": {
+    "build": "deno task pack",
+    "bench": "deno bench coerce.bench.ts",
+    "check": "deno check --doc *.ts dom/*.ts",
+    "clean": "deno run --allow-read=. --allow-write=. scripts/clean.ts",
+    "pack": "deno pack --allow-dirty --no-source-maps --ignore='**/*.test.ts' --ignore='**/*.bench.ts'",
+    "pack:release": "deno task clean && deno task check && deno task test && deno task clean && deno pack --no-source-maps --ignore='**/*.test.ts' --ignore='**/*.bench.ts'",
+    "test": "deno eval \"try { Deno.removeSync('coverage', { recursive: true }); } catch (error) { if (!(error instanceof Deno.errors.NotFound)) throw error; }\" && deno test --parallel --allow-net --coverage=coverage/tmp && deno coverage coverage/tmp --lcov > coverage/lcov.info",
+    "test:node": "node --test coerce.test.ts color.test.ts control.test.ts cookie.test.ts ease.test.ts http.test.ts intl.test.ts iterable.test.ts math.test.ts mime.test.ts misc.test.ts promise.test.ts"
+  },
   "compilerOptions": {
     "lib": ["dom", "dom.iterable", "deno.ns", "dom.asynciterable"],
     "strict": true
   },
+  "exclude": ["coverage", "dist", "node_modules", "promise-alt"],
+  "publish": {
+    "include": [
+      "README.md",
+      "coerce.ts",
+      "color.ts",
+      "control.ts",
+      "cookie.ts",
+      "ease.ts",
+      "http.ts",
+      "intl.ts",
+      "iterable.ts",
+      "math.ts",
+      "mime.ts",
+      "misc.ts",
+      "promise.ts",
+      "dom/bg-color-match.ts",
+      "dom/closest-inclusive.ts",
+      "dom/facade.ts",
+      "dom/form.ts",
+      "dom/loaded.ts",
+      "dom/parallax.ts",
+      "dom/script.ts",
+      "dom/video.ts",
+      "dom/viewport.ts"
+    ]
+  },
   "lint": {
-    "files": {
-      "include": ["**/*.ts"],
-      "exclude": ["node_modules"]
-    },
+    "include": ["**/*.ts"],
+    "exclude": ["node_modules", "promise-alt"],
     "rules": {
-      "tags": ["recommended"],
-      "include": ["ban-untagged-todo"]
+      "tags": [],
+      "include": ["ban-untagged-todo", "no-slow-types"]
     }
   },
   "fmt": {
-    "options": {
-      "useTabs": false,
-      "lineWidth": 100,
-      "indentWidth": 2,
-      "singleQuote": true,
-      "proseWrap": "always"
-    }
+    "useTabs": false,
+    "lineWidth": 100,
+    "indentWidth": 2,
+    "singleQuote": true,
+    "proseWrap": "always"
   },
   "imports": {
     "@resolute/std/coerce": "./coerce.ts",

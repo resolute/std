@@ -1,9 +1,9 @@
 //#region Coerce
 // -----------------------------------------------------------------------------
 
-const SymbolGuardTest = Symbol('GuardTest');
-const SymbolOtherwise = Symbol('Otherwise');
-const SymbolPredicate = Symbol('Predicate');
+const SymbolGuardTest = /* @__PURE__ */ Symbol('GuardTest');
+const SymbolOtherwise = /* @__PURE__ */ Symbol('Otherwise');
+const SymbolPredicate = /* @__PURE__ */ Symbol('Predicate');
 
 /**
  * Non-throwing test attached to pure validators. When present, `is`, `not`,
@@ -134,7 +134,7 @@ export const or = <Y>(value: NonFunction<Y>) => ({
  * @param coercer any type guard or mutating function
  * @returns boolean
  */
-export const is = <A extends UnaryFunction>(coercer: A) => {
+export const is = <A extends UnaryFunction>(coercer: A): Is<A> => {
   const predicate = predicateOf(coercer);
   const guard = predicate
     ? (value: unknown): value is ReturnType<A> => predicate(value)
@@ -169,7 +169,7 @@ export const is = <A extends UnaryFunction>(coercer: A) => {
  * @param coercer any type guard or mutating function
  * @returns
  */
-export const not = <A extends UnaryFunction>(coercer: A) => {
+export const not = <A extends UnaryFunction>(coercer: A): Not<A> => {
   const inner = predicateOf(coercer);
   const inverted = inner ? (value: any) => !inner(value) : undefined;
   const test = is(coercer);
@@ -410,7 +410,7 @@ export const zero = /* @__PURE__ */ validator(
  * Alias `not(zero)`
  * @see zero
  */
-export const nonzero = /* @__PURE__ */ to(not(zero)) as <T extends number>(
+export const nonzero = /* @__PURE__ */ to(/* @__PURE__ */ not(zero)) as <T extends number>(
   input: T,
 ) => T extends 0 ? never : T;
 
@@ -436,8 +436,8 @@ export const positive = /* @__PURE__ */ to(
  * @returns value
  * @throws if value >= 0
  */
-const negativePipe = /* @__PURE__ */ to(nonzero, not(positive));
-export const negative = (value: number) => {
+const negativePipe = /* @__PURE__ */ to(nonzero, /* @__PURE__ */ not(positive));
+export const negative = (value: number): number => {
   try {
     return negativePipe(value);
   } catch {
@@ -451,7 +451,7 @@ export const negative = (value: number) => {
  * @returns value
  * @throws if date is in the past
  */
-export const future = (value: Date) => {
+export const future = (value: Date): Date => {
   if (value.valueOf() > Date.now()) {
     return value;
   }
@@ -464,7 +464,7 @@ export const future = (value: Date) => {
  * @returns value
  * @throws if date is in the future
  */
-export const past = (value: Date) => {
+export const past = (value: Date): Date => {
   if (value.valueOf() < Date.now()) {
     return value;
   }
@@ -494,7 +494,9 @@ export const length = <N extends number>(size: N) =>
  */
 // `not` kind of messes up the types here. Explicit type definition used:
 // export const nonempty = <T>(value: T) => to(not(length(0)))(value) as T & { length: number };
-export const nonempty = /* @__PURE__ */ to(not(length(0))) as <T extends { length: number }>(
+export const nonempty = /* @__PURE__ */ to(
+  /* @__PURE__ */ not(/* @__PURE__ */ length(0)),
+) as <T extends { length: number }>(
   value: T,
 ) => T;
 
@@ -519,7 +521,7 @@ export const within = <T>(list: readonly T[]) =>
  * @returns value
  * @throws if value does not pass Luhn algorithm
  */
-export const luhn = (value: string) => {
+export const luhn = (value: string): string => {
   let { length } = value;
   let bit = 1;
   let sum = 0;
@@ -545,7 +547,7 @@ export const luhn = (value: string) => {
  * @returns string
  * @throws if value cannot be mutated to `string`
  */
-export const stringify = <T extends string | number | bigint>(value: T) => {
+export const stringify = <T extends string | number | bigint>(value: T): string => {
   if (is(finite)(value) || is(bigint)(value)) {
     return value.toString();
   }
@@ -558,7 +560,7 @@ export const stringify = <T extends string | number | bigint>(value: T) => {
  * @returns number
  * @throws if value cannot be mutated to `number`
  */
-export const numeric = <T extends string | number | bigint>(value: T) => {
+export const numeric = <T extends string | number | bigint>(value: T): number => {
   if (is(bigint)(value)) {
     if (value > Number.MIN_SAFE_INTEGER && value < Number.MAX_SAFE_INTEGER) {
       return Number(value);
@@ -588,7 +590,7 @@ const numericPipe: (value: unknown) => number = /* @__PURE__ */ to(
  * @returns Date
  * @throws if value cannot be mutated to `Date`
  */
-export const dateify = <T extends number | string | Date>(value: T) => {
+export const dateify = <T extends number | string | Date>(value: T): Date => {
   const mutated = new Date(value);
   if (is(date)(mutated)) {
     return mutated;
@@ -611,7 +613,7 @@ export const boolean = <Truthy = true, Falsy = false, Nully = Falsy, Undefy = Nu
     | readonly [truthy: Truthy, falsy: Falsy]
     | readonly [truthy: Truthy, falsy: Falsy, nully: Nully]
     | readonly [truthy: Truthy, falsy: Falsy, nully: Nully, undefy: Undefy]
-) => {
+): (value: unknown) => Truthy | Falsy | Nully | Undefy => {
   // This verbose nastiness handles cases where `undefined` is passed as any of
   // the truthy, falsy, nully, undefy parameters.
   const truthy = (args.length < 1 ? true : args[0]) as Truthy;
@@ -696,7 +698,7 @@ export const entries: Entries = <T extends Iterable<any>>(value: T) => {
  * @returns array
  * @throws if value cannot be transformed into an array of entries
  */
-export const pairs = <T extends Iterable<[K, V]>, K, V>(value: T) =>
+export const pairs = <T extends Iterable<[K, V]>, K, V>(value: T): [K, V][] =>
   entries(value)
     .map(limit(2) as (value: [K, V]) => [K, V])
     .filter(is(length(2)));
@@ -728,7 +730,7 @@ export const wrapError: WrapError = (wrapper?: ErrorConstructor) => (value: Erro
  * @returns number
  * @throws if value is not a number
  */
-export const integer = (value: number) => Math.round(value);
+export const integer = (value: number): number => Math.round(value);
 
 /**
  * Remove dangerous characters from string
@@ -736,7 +738,7 @@ export const integer = (value: number) => Math.round(value);
  * @returns string
  * @throws if value is not a string
  */
-export const safe = (value: string) => value.replace(/[\\|";/?<>()*[\]{}=`\t\r\n]/g, '');
+export const safe = (value: string): string => value.replace(/[\\|";/?<>()*[\]{}=`\t\r\n]/g, '');
 
 /**
  * Replace leading and trailing whitespace from a string
@@ -747,7 +749,7 @@ export const safe = (value: string) => value.replace(/[\\|";/?<>()*[\]{}=`\t\r\n
  * @returns string
  * @throws if value is not a string
  */
-export const trim = (value: string) => value.trim();
+export const trim = (value: string): string => value.trim();
 
 /**
  * Replace all SPACE-like characters with a regular SPACE. Replace continuous
@@ -757,7 +759,7 @@ export const trim = (value: string) => value.trim();
  * @returns string
  * @throws if value is not a string
  */
-export const spaces = (value: string) =>
+export const spaces = (value: string): string =>
   value
     .replace(
       /[\u00A0\u1680\u180E\u2000-\u200B\u202F\u205F\u3000\uFEFF]/g,
@@ -771,7 +773,7 @@ export const spaces = (value: string) =>
  * @returns string
  * @throws if value is not a string
  */
-export const quotes = (value: string) =>
+export const quotes = (value: string): string =>
   ([
     // triple prime
     [/'''/g, '‴'],
@@ -818,39 +820,40 @@ export const quotes = (value: string) =>
  * @returns string
  * @throws if value is not a string
  */
-export const ucfirst = (value: string) => value.charAt(0).toUpperCase() + value.slice(1);
+export const ucfirst = (value: string): string => value.charAt(0).toUpperCase() + value.slice(1);
 export const ucFirst = ucfirst;
 
-const hasBothUpperAndLower = (value: string) => /[A-Z]/.test(value) && /[a-z]/.test(value);
+const hasBothUpperAndLower = (value: string): boolean => /[A-Z]/.test(value) && /[a-z]/.test(value);
 
-const properNameCapitalizer = (mixedCase: boolean) => (match: string) => {
-  const lowerCaseMatch = match.toLowerCase();
-  // single letters should be uppercase (middle initials, etc.)
-  if (match.length === 1) {
-    return match.toUpperCase();
-  }
-  if (match.length <= 3) {
-    // suffixes that should be all uppercase
-    if (['ii', 'iii', 'iv', 'v'].indexOf(lowerCaseMatch) > -1) {
+const properNameCapitalizer =
+  (mixedCase: boolean): (match: string) => string => (match: string): string => {
+    const lowerCaseMatch = match.toLowerCase();
+    // single letters should be uppercase (middle initials, etc.)
+    if (match.length === 1) {
       return match.toUpperCase();
     }
-    // compound names that should be lowercase
-    if (['dit', 'de', 'von'].indexOf(lowerCaseMatch) > -1) {
-      return lowerCaseMatch;
+    if (match.length <= 3) {
+      // suffixes that should be all uppercase
+      if (['ii', 'iii', 'iv', 'v'].indexOf(lowerCaseMatch) > -1) {
+        return match.toUpperCase();
+      }
+      // compound names that should be lowercase
+      if (['dit', 'de', 'von'].indexOf(lowerCaseMatch) > -1) {
+        return lowerCaseMatch;
+      }
+      if (mixedCase) {
+        return match;
+      }
     }
-    if (mixedCase) {
-      return match;
-    }
-  }
-  return (
-    ucfirst(lowerCaseMatch)
-      // McXx, MacXx, O’Xx, D’Xx
-      .replace(
-        /^(ma?c|[od]’)(\S{2,}$)/i,
-        (_m, p1, p2) => ucfirst(p1) + ucfirst(p2),
-      )
-  );
-};
+    return (
+      ucfirst(lowerCaseMatch)
+        // McXx, MacXx, O’Xx, D’Xx
+        .replace(
+          /^(ma?c|[od]’)(\S{2,}$)/i,
+          (_m, p1, p2) => ucfirst(p1) + ucfirst(p2),
+        )
+    );
+  };
 
 /**
  * Fix capitalization of proper nouns: names, addresses
@@ -858,7 +861,7 @@ const properNameCapitalizer = (mixedCase: boolean) => (match: string) => {
  * @returns string
  * @throws if value is not a string
  */
-export const proper = (value: string) =>
+export const proper = (value: string): string =>
   value
     // restrict character set for proper names and addresses
     .replace(/[^A-Za-z0-9\u00C0-\u00FF’ ,-]/g, ' ')
@@ -874,7 +877,7 @@ export const proper = (value: string) =>
  * @returns string
  * @throws if value does not resemble an email
  */
-export const email = /* @__PURE__ */ to(
+export const email: ToResult<string, string> = /* @__PURE__ */ to(
   (value: string) => value.toLowerCase().replace(/\s+/g, ''),
   nonempty,
   (value: string) => {
@@ -891,7 +894,7 @@ export const email = /* @__PURE__ */ to(
  * @returns string with only [0-9] digits
  * @throws if value is not a string
  */
-export const digits = (value: string) => value.replace(/[^\d]/g, '');
+export const digits = (value: string): string => value.replace(/[^\d]/g, '');
 
 /**
  * Returns only the digits of a phone number without any formatting
@@ -899,7 +902,7 @@ export const digits = (value: string) => value.replace(/[^\d]/g, '');
  * @returns string of 10+ digits
  * @throws if value is not a string of 10+ digits (excluding leading 0 or 1)
  */
-export const phone = (value: string) => {
+export const phone = (value: string): string => {
   const onlyDigits = digits(value).replace(/^[01]+/, '');
   if (onlyDigits.length >= 10) {
     return onlyDigits;
@@ -913,7 +916,7 @@ export const phone = (value: string) => {
  * @returns string of exactly 10 digits
  * @throws if value is not a string of exactly 10 digits (excluding leading 0 or 1)
  */
-export const phone10 = (value: string) => {
+export const phone10 = (value: string): string => {
   const valid = phone(value);
   if (valid.length === 10) {
     return valid;
@@ -927,7 +930,7 @@ export const phone10 = (value: string) => {
  * @returns string of formatted phone number
  * @throws if value is not a string of at least 10 digits (excluding leading 0 or 1)
  */
-export const prettyPhone = (value: string) => {
+export const prettyPhone = (value: string): string => {
   const valid = phone(value);
   if (valid.length === 10) {
     return valid.replace(/(\d{3})(\d{3})(\d{4})/, '($1) $2-$3');
@@ -943,7 +946,7 @@ export const prettyPhone = (value: string) => {
  */
 // built lazily: `limit` is declared further down in this module
 let postalCodeUs5Pipe: UnaryFunction | undefined;
-export const postalCodeUs5 = (value: string) => {
+export const postalCodeUs5 = (value: string): string & { length: 5 } => {
   const validate = postalCodeUs5Pipe ??= to(digits, limit(5), string, length(5));
   try {
     return validate(value) as string & { length: 5 };
@@ -958,7 +961,7 @@ export const postalCodeUs5 = (value: string) => {
  * @param max number
  * @returns function to limit given input
  */
-export const limit = <N extends number>(max: N) =>
+export const limit = <N extends number>(max: N): <T>(value: T) => Limit<N, T> =>
 /**
  * Limit the value of a `number`, characters in a `string`, or items in an
  * `array`
@@ -966,7 +969,7 @@ export const limit = <N extends number>(max: N) =>
  * @returns limited to `max`
  * @throws if value is not a number, string, or array
  */
-<T>(value: T) => {
+<T>(value: T): Limit<N, T> => {
   if (is(number)(value)) {
     return Math.min(value, max) as Limit<N, T>;
   }
@@ -985,7 +988,7 @@ export const limit = <N extends number>(max: N) =>
  * @param separator default: `/[,\r\n\s]+/g` commas, newlines, spaces, tabs
  * @param limit optionally limit the number of items in result
  */
-export const split = (separator = /[,\r\n\s]+/g, limit?: number) =>
+export const split = (separator = /[,\r\n\s]+/g, limit?: number): (value: string) => string[] =>
 /**
  * Split a string by given `separator` (default: comma, newline, space, tab).
  * Remove empty strings from returned array.
@@ -998,7 +1001,7 @@ export const split = (separator = /[,\r\n\s]+/g, limit?: number) =>
  * @returns array of strings split by `separator`
  * @throws if value is not a string
  */
-(value: string) =>
+(value: string): string[] =>
   value.split(separator, limit)
     .map(spaces) // remove irregular spaces
     .map(trim)

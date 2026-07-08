@@ -1,5 +1,5 @@
 import { wrapError } from './coerce.ts';
-import { equals, exists, matches, strict, throws, throwsAsync } from './deps.test.ts';
+import { equals, exists, matches, strict, test, throws, throwsAsync } from './assert.test.ts';
 
 import {
   cancelBody,
@@ -96,17 +96,17 @@ const testBlobResponse = new Response(
   },
 );
 
-Deno.test('statusCodeFromError', () => {
+test('statusCodeFromError', () => {
   strict(statusCodeFromError(new Error('foo')), 500);
   strict(statusCodeFromError({}), undefined);
 });
 
-Deno.test('method', () => {
+test('method', () => {
   strict(method(['GET'])(testGetRequest), testGetRequest);
   throws(() => method(['POST'])(testGetRequest), HttpError);
 });
 
-Deno.test('isFormOrJsonPostRequest', () => {
+test('isFormOrJsonPostRequest', () => {
   throws(() => validDataPostRequest(testGetRequest), HttpError);
   throws(() => validDataPostRequest(testPutRequest), HttpError);
   throws(() => validDataPostRequest(testTextRequest), HttpError);
@@ -115,7 +115,7 @@ Deno.test('isFormOrJsonPostRequest', () => {
   strict(validDataPostRequest(testFormRequest), testFormRequest);
 });
 
-Deno.test('readBody', async () => {
+test('readBody', async () => {
   await throwsAsync(() => readBody({} as Response), TypeError);
   await throwsAsync(() => readBody(testJsonResponseInvalid));
   strict(await readBody(jsonResponse()), null);
@@ -129,7 +129,7 @@ Deno.test('readBody', async () => {
   equals(await readBody(testFormDataResponse), { foo: 'bar' });
 });
 
-Deno.test('jsonResponse', async () => {
+test('jsonResponse', async () => {
   const original = jsonResponse({ foo: 'bar' });
   equals(await original.json(), { foo: 'bar' });
   const duplicate = jsonResponse(original);
@@ -141,7 +141,7 @@ Deno.test('jsonResponse', async () => {
   strict(await jsonResponse(false).json(), false);
 });
 
-Deno.test('readResponseError', async () => {
+test('readResponseError', async () => {
   const explicit = jsonResponse(new HttpError('not found', 404));
   const explicitError = await readResponseError(explicit);
   matches(explicitError, { message: 'not found', status: 404 });
@@ -150,7 +150,7 @@ Deno.test('readResponseError', async () => {
   matches(implicitError, { status: 404 });
 });
 
-Deno.test('fetchOk', () =>
+test('fetchOk', () =>
   Promise.all([
     fetchOk(`${BASE_TEST_HTTP_URL}/200`).then(cancelBody).then(exists),
     fetchOk(`${BASE_TEST_HTTP_URL}/301`).then(cancelBody).then(exists),
@@ -160,7 +160,7 @@ Deno.test('fetchOk', () =>
     throwsAsync(() => fetchOk(`${BASE_TEST_HTTP_URL}/500`), HttpError),
   ]).then(() => {}));
 
-Deno.test('fetchPass', () =>
+test('fetchPass', () =>
   Promise.all([
     fetchPass(200, `${BASE_TEST_HTTP_URL}/200`).then(readBody).then(exists),
     fetchPass(200, `${BASE_TEST_HTTP_URL}/301`).then(readBody).then(exists),
@@ -180,13 +180,13 @@ Deno.test('fetchPass', () =>
     throwsAsync(() => fetchPass(200, `${BASE_TEST_HTTP_URL}/500`), HttpError),
   ]).then(() => {}));
 
-Deno.test('fetchThrow500', () =>
+test('fetchThrow500', () =>
   Promise.all([
     fetchThrow500(`${BASE_TEST_HTTP_URL}/200`).then(readBody).then(exists),
     throwsAsync(() => fetchThrow500(`${BASE_TEST_HTTP_URL}/500`)),
   ]).then(() => {}));
 
-Deno.test('HttpError', () => {
+test('HttpError', () => {
   equals(wrapError(SyntaxError)('foo'), new SyntaxError('foo'));
   equals(wrapError(HttpError)('foo'), new HttpError('foo'));
 });

@@ -1,17 +1,9 @@
-// @ts-ignore tsc non-sense
 import loaded from './loaded.ts';
-// @ts-ignore tsc non-sense
 import viewport from './viewport.ts';
 
 export type ParallaxEvent = CustomEvent<number>;
 
-declare global {
-  interface HTMLElementEventMap {
-    'parallax': ParallaxEvent;
-  }
-}
-
-const progress = (element: HTMLElement, viewportHeight: number, scrollY: number) => {
+const progress = (element: HTMLElement, viewportHeight: number, scrollY: number): number => {
   const { top, height, bottom } = element.getBoundingClientRect();
   const documentHeight = document.documentElement.scrollHeight;
   const aboveTheFoldAdjustment = Math.max(0, viewportHeight - (scrollY + top));
@@ -24,9 +16,9 @@ const progress = (element: HTMLElement, viewportHeight: number, scrollY: number)
   return progress;
 };
 
-const elements = new Set<HTMLElement>();
+const elements = /* @__PURE__ */ new Set<HTMLElement>();
 
-const fire = () => {
+const fire = (): void => {
   requestAnimationFrame(() => {
     const viewportHeight = viewport().height; // instead of window.innerHeight
     const queue: [HTMLElement, number][] = [];
@@ -46,15 +38,24 @@ const fire = () => {
   });
 };
 
+let listening = false;
+
+const listen = (): void => {
+  if (listening) {
+    return;
+  }
+  listening = true;
+  loaded(fire);
+  addEventListener('resize', fire, { passive: true });
+  addEventListener('scroll', fire, { passive: true });
+};
+
 /**
  * Enable "parallax" event dispatching on `element`. Listeners bound with
  * `element.addEventListener("parallax", listener)` receive ParallaxEvent (%
  * scroll progress) on scroll/resize.
  */
-export default (element: HTMLElement) => {
+export default (element: HTMLElement): void => {
   elements.add(element);
+  listen();
 };
-
-loaded(fire);
-addEventListener('resize', fire, { passive: true });
-addEventListener('scroll', fire, { passive: true });
