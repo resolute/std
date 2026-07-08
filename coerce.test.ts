@@ -142,7 +142,7 @@ Deno.test('safe', () => {
 Deno.test('proper', () => {
   strict(to(quotes, proper)('abc company'), 'Abc Company');
   strict(to(quotes, proper)('ABC company'), 'ABC Company');
-  strict(to(quotes, proper)('john q. o\'donnel, III'), 'John Q O’Donnel, III');
+  strict(to(quotes, proper)("john q. o'donnel, III"), 'John Q O’Donnel, III');
   strict(to(quotes, proper)('VON Trap'), 'von Trap');
 });
 

@@ -17,7 +17,7 @@ Deno.test('mapKeys', () => {
 });
 
 Deno.test('properName', () => {
-  strict(properName('  ol\' mcdonald, iv '), 'Ol’ McDonald, IV');
+  strict(properName("  ol' mcdonald, iv "), 'Ol’ McDonald, IV');
 });
 
 Deno.test('misc/unique', () => {

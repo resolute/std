@@ -34,7 +34,7 @@ export class HttpError extends Error {
     }
   }
 
-  toString() {
+  override toString() {
     return this.message;
   }
 }

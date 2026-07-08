@@ -17,7 +17,7 @@ npm i @resolute/std
 ```ts
 import { fetchOk } from '@resolute/std/http';
 try {
-  await fetchOk('https://httpstat.us/500');
+  await fetchOk('https://mock.httpstatus.io/500');
 } catch (error) {
   // `fetch` doesn’t throw on 500 responses.
   // `fetchOk` does :)
@@ -149,7 +149,8 @@ until it resolves, whichever comes first.
 
 ```ts
 import { retry } from '@resolute/std/control';
-await retry(fetch)('https://httpstat.us/200');
+const response = await retry(fetch)('https://mock.httpstatus.io/200');
+await response.text();
 ```
 
 ### `sleep`
@@ -239,7 +240,7 @@ Throw if value is not in list.
 
 ```ts
 import { fetchOk } from '@resolute/std/http';
-await fetchOk('https://httpstat.us/500'); // HttpError: HTTP 500 Error
+await fetchOk('https://mock.httpstatus.io/500'); // HttpError: HTTP 500 Error
 ```
 
 ### `method`

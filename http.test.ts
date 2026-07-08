@@ -16,7 +16,7 @@ import {
 } from './http.ts';
 
 const BASE_TEST_HTTP_URL = 'https://httpbin.org/status';
-// const BASE_TEST_HTTP_URL = 'https://httpstat.us';
+// const BASE_TEST_HTTP_URL = 'https://mock.httpstatus.io';
 
 const testGetRequest = new Request('file:///foo');
 

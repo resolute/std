@@ -1,4 +1,4 @@
-import to, { is, string } from './coerce.ts';
+import { is, string } from './coerce.ts';
 
 Deno.bench('FAIL typeof 1 === "string"', { group: 'string fail', baseline: true }, () => {
   typeof 1 === 'string';
@@ -10,7 +10,7 @@ Deno.bench('FAIL is(string)(1)', { group: 'string fail' }, () => {
 
 Deno.bench('FAIL try { string(1) } catch {}', { group: 'string fail' }, () => {
   try {
-    string(1);
+    string(1 as unknown as string);
   } catch {}
 });
 

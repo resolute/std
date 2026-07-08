@@ -1,6 +1,5 @@
 {
   "compilerOptions": {
-    "allowJs": true,
     "lib": ["dom", "dom.iterable", "deno.ns", "dom.asynciterable"],
     "strict": true
   },
