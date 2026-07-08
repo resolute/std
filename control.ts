@@ -231,7 +231,7 @@ export const throttle = (limit: number, interval: number) => {
       currentTick += interval;
       activeCount = 1;
     }
-    return currentTick - now;
+    return Math.max(0, currentTick - now);
   };
   return <T extends (...args: any[]) => any>(fn: T) => {
     const controller = new AbortController();
