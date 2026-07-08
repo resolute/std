@@ -3,6 +3,43 @@
 
 const SymbolGuardTest = Symbol('GuardTest');
 const SymbolOtherwise = Symbol('Otherwise');
+const SymbolPredicate = Symbol('Predicate');
+
+/**
+ * Non-throwing test attached to pure validators. When present, `is`, `not`,
+ * and `to(…, or(…))` chains consult it instead of invoking the coercer and
+ * catching its `TypeError`. This matters because `Error` construction is
+ * expensive on some runtimes — workerd (Cloudflare Workers) captures the stack
+ * eagerly and ignores `Error.stackTraceLimit`, so exception-based control flow
+ * costs tens of microseconds per throw on deep call stacks (e.g. inside an SSR
+ * render). With predicates, a `TypeError` is only constructed when a failure
+ * actually escapes to the caller.
+ *
+ * Only attach a predicate to a coercer that (a) never throws inside the
+ * predicate itself and (b) returns its input unchanged when the predicate
+ * passes (pure validator — no mutation).
+ */
+const predicateOf = (coercer: unknown): ((value: any) => boolean) | undefined =>
+  typeof coercer === 'function'
+    ? (coercer as { [SymbolPredicate]?: (value: any) => boolean })[SymbolPredicate]
+    : undefined;
+
+/**
+ * Build a validating guard from a non-throwing `predicate`. The guard returns
+ * its input unchanged when the predicate passes and throws a uniform
+ * `TypeError` otherwise. `expected` may be a thunk so the failure message is
+ * only computed when a failure actually happens.
+ */
+const validator = (predicate: (value: any) => boolean, expected: string | (() => string)) => {
+  const coercer = (value: any) => {
+    if (predicate(value)) {
+      return value;
+    }
+    throw exception(value, typeof expected === 'string' ? expected : expected());
+  };
+  (coercer as { [SymbolPredicate]?: (value: any) => boolean })[SymbolPredicate] = predicate;
+  return coercer;
+};
 
 /**
  * Chain a set of coercing functions.
@@ -19,20 +56,44 @@ const SymbolOtherwise = Symbol('Otherwise');
 export const to: Coerce = (...coercers: UnaryFunction[]) => {
   const coercerLengthMinusOne = coercers.length - 1;
   const lastCoercer = coercers[coercerLengthMinusOne];
-  if (not(own(SymbolOtherwise))(lastCoercer)) {
+  if (
+    !(typeof lastCoercer === 'object' && lastCoercer !== null && SymbolOtherwise in lastCoercer)
+  ) {
     return pipe(...coercers);
   }
+  const { value: otherwise } = lastCoercer as Otherwise<any>;
+  const throwOtherwise = otherwise instanceof Error;
+  // Compile the chain once. Stages with a predicate run throw-free: on a
+  // predicate miss we jump straight to `otherwise` without ever constructing
+  // the guard’s TypeError. Stages without a predicate (mutators, foreign
+  // functions) run under try/catch as before.
+  const stages = coercers.slice(0, coercerLengthMinusOne).map((coercer) => ({
+    predicate: predicateOf(coercer),
+    run: guardInPipe(coercer) as UnaryFunction,
+  }));
   return <T>(value: T) => {
-    const { value: otherwise } = lastCoercer;
-    const revised = coercers.slice(0, coercerLengthMinusOne);
-    try {
-      return pipe(...revised)(value);
-    } catch (error) {
-      if (is(instance(Error))(otherwise)) {
-        throw otherwise;
+    let current: unknown = value;
+    for (const stage of stages) {
+      if (stage.predicate) {
+        if (!stage.predicate(current)) {
+          if (throwOtherwise) {
+            throw otherwise;
+          }
+          return otherwise;
+        }
+        // pure validator: value passes through unchanged
+      } else {
+        try {
+          current = stage.run(current);
+        } catch {
+          if (throwOtherwise) {
+            throw otherwise;
+          }
+          return otherwise;
+        }
       }
-      return otherwise;
     }
+    return current;
   };
 };
 
@@ -74,14 +135,20 @@ export const or = <Y>(value: NonFunction<Y>) => ({
  * @returns boolean
  */
 export const is = <A extends UnaryFunction>(coercer: A) => {
-  const guard = (value: unknown): value is ReturnType<A> => {
-    try {
-      coercer(value);
-      return true;
-    } catch {
-      return false;
-    }
-  };
+  const predicate = predicateOf(coercer);
+  const guard = predicate
+    ? (value: unknown): value is ReturnType<A> => predicate(value)
+    : (value: unknown): value is ReturnType<A> => {
+      try {
+        coercer(value);
+        return true;
+      } catch {
+        return false;
+      }
+    };
+  if (predicate) {
+    (guard as { [SymbolPredicate]?: (value: any) => boolean })[SymbolPredicate] = predicate;
+  }
   (guard as Is<A>)[SymbolGuardTest] = <T extends ReturnType<A>>(value: T) => {
     coercer(value);
     return value;
@@ -103,15 +170,28 @@ export const is = <A extends UnaryFunction>(coercer: A) => {
  * @returns
  */
 export const not = <A extends UnaryFunction>(coercer: A) => {
-  const guard = <T>(value: T): value is T extends ReturnType<A> ? never : T => !is(coercer)(value);
-  (guard as Not<A>)[SymbolGuardTest] = <T>(value: T) => {
-    try {
-      coercer(value);
-    } catch {
-      return value as T extends ReturnType<A> ? never : T;
+  const inner = predicateOf(coercer);
+  const inverted = inner ? (value: any) => !inner(value) : undefined;
+  const test = is(coercer);
+  const guard = <T>(value: T): value is T extends ReturnType<A> ? never : T => !test(value);
+  if (inverted) {
+    (guard as { [SymbolPredicate]?: (value: any) => boolean })[SymbolPredicate] = inverted;
+  }
+  (guard as Not<A>)[SymbolGuardTest] = inverted
+    ? <T>(value: T) => {
+      if (inverted(value)) {
+        return value as T extends ReturnType<A> ? never : T;
+      }
+      throw exception(value, `something else`);
     }
-    throw exception(value, `something else`);
-  };
+    : <T>(value: T) => {
+      try {
+        coercer(value);
+      } catch {
+        return value as T extends ReturnType<A> ? never : T;
+      }
+      throw exception(value, `something else`);
+    };
   return guard as Not<A>;
 };
 
@@ -127,8 +207,18 @@ const exception = (actual: any, expected: string) =>
 /**
  * Create a pipe of unary functions
  */
-const pipe: To = (...fns: UnaryFunction[]) =>
-  fns.reduce.bind(fns.map(guardInPipe), (value, fn) => fn(value)) as UnaryFunction;
+const pipe: To = (...fns: UnaryFunction[]) => {
+  const piped = fns.reduce.bind(fns.map(guardInPipe), (value, fn) => fn(value)) as UnaryFunction;
+  // A pipe made exclusively of pure validators is itself a pure validator:
+  // propagate a composite predicate so `is`/`not`/`to(…, or(…))` treat the
+  // whole pipe throw-free (e.g. `nonzero`, `nonempty`).
+  const predicates = fns.map(predicateOf);
+  if (fns.length > 0 && predicates.every((predicate) => predicate)) {
+    (piped as { [SymbolPredicate]?: (value: any) => boolean })[SymbolPredicate] = (value) =>
+      (predicates as ((value: any) => boolean)[]).every((predicate) => predicate(value));
+  }
+  return piped;
+};
 
 /**
  * Since type guard functions return boolean, we need to wrap them when they are
@@ -139,8 +229,8 @@ const pipe: To = (...fns: UnaryFunction[]) =>
 const guardInPipe = <T extends Is<R> | UnaryFunction, R extends UnaryFunction>(
   coercer: T,
 ) => {
-  if (is(own(SymbolGuardTest))(coercer)) {
-    return coercer[SymbolGuardTest];
+  if (typeof coercer === 'function' && SymbolGuardTest in coercer) {
+    return (coercer as Is<R>)[SymbolGuardTest];
   }
   return coercer;
 };
@@ -156,12 +246,10 @@ const guardInPipe = <T extends Is<R> | UnaryFunction, R extends UnaryFunction>(
  * @returns value
  * @throws if value is not `string`
  */
-export const string = (value: string): string => {
-  if (typeof value === 'string') {
-    return value;
-  }
-  throw exception(value, 'a string');
-};
+export const string = /* @__PURE__ */ validator(
+  (value) => typeof value === 'string',
+  'a string',
+) as (value: string) => string;
 
 /**
  * `number` Guard
@@ -169,12 +257,10 @@ export const string = (value: string): string => {
  * @returns value
  * @throws if value is not `number`
  */
-export const number = (value: number): number => {
-  if (typeof value === 'number' && Number.isFinite(value)) {
-    return value;
-  }
-  throw exception(value, 'a finite number');
-};
+export const number = /* @__PURE__ */ validator(
+  (value) => typeof value === 'number' && Number.isFinite(value),
+  'a finite number',
+) as (value: number) => number;
 
 /**
  * `bigint` Guard
@@ -182,12 +268,10 @@ export const number = (value: number): number => {
  * @returns value
  * @throws if value is not `bigint`
  */
-export const bigint = (value: bigint): bigint => {
-  if (typeof value === 'bigint') {
-    return value;
-  }
-  throw exception(value, 'a bigint');
-};
+export const bigint = /* @__PURE__ */ validator(
+  (value) => typeof value === 'bigint',
+  'a bigint',
+) as (value: bigint) => bigint;
 
 /**
  * `Date` Guard
@@ -195,15 +279,19 @@ export const bigint = (value: bigint): bigint => {
  * @returns value
  * @throws if value is not `Date`
  */
-export const date = (value: Date): Date => {
-  try {
-    const valid = to(object, instance(Date))(value);
-    to(finite, nonzero)(valid.valueOf());
-    return valid;
-  } catch {
-    throw exception(value, 'a date');
-  }
-};
+export const date = /* @__PURE__ */ validator(
+  // valueOf() must be finite and nonzero (the 1970-01-01T00:00:00.000Z epoch
+  // itself is deliberately rejected — it is the signature of a zeroed-out or
+  // defaulted date field, not a real value)
+  (value) => {
+    if (!(value instanceof Date)) {
+      return false;
+    }
+    const ms = value.valueOf();
+    return Number.isFinite(ms) && ms !== 0;
+  },
+  'a date',
+) as (value: Date) => Date;
 
 /**
  * `Array` Guard
@@ -211,12 +299,10 @@ export const date = (value: Date): Date => {
  * @returns value
  * @throws if value is not `Array`
  */
-export const array = <T extends readonly any[]>(value: T): T => {
-  if (Array.isArray(value)) {
-    return value;
-  }
-  throw exception(value, 'an array');
-};
+export const array = /* @__PURE__ */ validator(
+  (value) => Array.isArray(value),
+  'an array',
+) as <T extends readonly any[]>(value: T) => T;
 
 /**
  * `Iterable` Guard
@@ -224,12 +310,16 @@ export const array = <T extends readonly any[]>(value: T): T => {
  * @returns value
  * @throws if value is not `Iterable`
  */
-export const iterable = <T extends Iterable<any>>(value: T): T => {
-  if (Symbol.iterator in value) {
-    return value;
-  }
-  throw exception(value, 'iterable');
-};
+export const iterable = /* @__PURE__ */ validator(
+  // mirrors `Symbol.iterator in value`, which throws for primitives — string
+  // primitives intentionally test false here, matching the historical
+  // `is(iterable)('foo') === false` behavior
+  (value) =>
+    (typeof value === 'object' || typeof value === 'function') &&
+    value !== null &&
+    Symbol.iterator in value,
+  'iterable',
+) as <T extends Iterable<any>>(value: T) => T;
 
 /**
  * Not `undefined` | `null` Guard
@@ -237,12 +327,10 @@ export const iterable = <T extends Iterable<any>>(value: T): T => {
  * @returns value
  * @throws if value is `undefined` or `null`
  */
-export const defined = <T>(value: T): NonNullable<T> => {
-  if (typeof value !== 'undefined' && value !== null) {
-    return value as NonNullable<T>;
-  }
-  throw exception(value, 'defined');
-};
+export const defined = /* @__PURE__ */ validator(
+  (value) => typeof value !== 'undefined' && value !== null,
+  'defined',
+) as <T>(value: T) => NonNullable<T>;
 
 /**
  * `object` Guard
@@ -250,12 +338,10 @@ export const defined = <T>(value: T): NonNullable<T> => {
  * @returns value
  * @throws if value is not an `object`
  */
-export const object = <T>(value: T): NonNullable<T> => {
-  if (typeof value === 'object' && value !== null) {
-    return value;
-  }
-  throw exception(value, 'an object');
-};
+export const object = /* @__PURE__ */ validator(
+  (value) => typeof value === 'object' && value !== null,
+  'an object',
+) as <T>(value: T) => NonNullable<T>;
 
 /**
  * `function` Guard
@@ -263,12 +349,10 @@ export const object = <T>(value: T): NonNullable<T> => {
  * @returns value
  * @throws if value is not an `function`
  */
-export const func = <T extends Function>(value: T): T => {
-  if (typeof value === 'function') {
-    return value;
-  }
-  throw exception(value, 'a function');
-};
+export const func = /* @__PURE__ */ validator(
+  (value) => typeof value === 'function',
+  'a function',
+) as <T extends Function>(value: T) => T;
 
 /**
  * `instanceof …` Guard
@@ -276,26 +360,26 @@ export const func = <T extends Function>(value: T): T => {
  * @returns value
  * @throws if value is not `instanceof …`
  */
-export const instance = <T extends Constructor>(constructor: T) => (value: unknown) => {
-  if (is(func)(constructor) && value instanceof constructor) {
-    return value as InstanceType<T>;
-  }
-  throw exception(value, `an instance of ${constructor}`);
-};
+export const instance = <T extends Constructor>(constructor: T) =>
+  validator(
+    (value) => typeof constructor === 'function' && value instanceof constructor,
+    () => `an instance of ${constructor}`,
+  ) as (value: unknown) => InstanceType<T>;
 
-export const own = <K extends PropertyKey>(property: K) => <T extends {}>(value: T) => {
-  if (Object.hasOwn(value, property)) {
-    return value as
-      & T
-      // Test the intersection of `T` and `{ [property]: unknown }`
-      & Extract<T, { [_ in K]: unknown }> extends never
-      // When it fails, this will throw, so if it passes, then the result is at a minimum `{ [property]: unknown }`
-      ? { [_ in K]: unknown }
-      // Successful path is a union of `T` and `{ [property]: unknown }`
-      : Extract<T, { [_ in K]: unknown }>;
-  }
-  throw exception(value, `an object with own “${String(property)}” property`);
-};
+export const own = <K extends PropertyKey>(property: K) =>
+  validator(
+    (value) => value !== null && typeof value !== 'undefined' && Object.hasOwn(value, property),
+    () => `an object with own “${String(property)}” property`,
+  ) as <T extends {}>(
+    value: T,
+  ) =>
+    & T
+    // Test the intersection of `T` and `{ [property]: unknown }`
+    & Extract<T, { [_ in K]: unknown }> extends never
+    // When it fails, this will throw, so if it passes, then the result is at a minimum `{ [property]: unknown }`
+    ? { [_ in K]: unknown }
+    // Successful path is a union of `T` and `{ [property]: unknown }`
+    : Extract<T, { [_ in K]: unknown }>;
 
 //#endregion
 
@@ -317,12 +401,10 @@ export const finite = /* @__PURE__ */ number;
  * @returns value
  * @throws if value is not 0
  */
-export const zero = (value: number) => {
-  if (value === 0) {
-    return value as 0;
-  }
-  throw exception(value, '0');
-};
+export const zero = /* @__PURE__ */ validator(
+  (value) => value === 0,
+  '0',
+) as (value: number) => 0;
 
 /**
  * Alias `not(zero)`
@@ -354,12 +436,14 @@ export const positive = /* @__PURE__ */ to(
  * @returns value
  * @throws if value >= 0
  */
-export const negative = (value: number) =>
-  to(
-    nonzero,
-    not(positive),
-    or(exception(value, 'a negative number')),
-  )(value);
+const negativePipe = /* @__PURE__ */ to(nonzero, not(positive));
+export const negative = (value: number) => {
+  try {
+    return negativePipe(value);
+  } catch {
+    throw exception(value, 'a negative number');
+  }
+};
 
 /**
  * Date is in the future
@@ -393,18 +477,16 @@ export const past = (value: Date) => {
  * @returns validator
  */
 export const length = <N extends number>(size: N) =>
-/**
- * Length of string or array is exactly `size`
- * @param value `string` or `array`
- * @returns value
- * @throws if value is not of length `size`
- */
-<T extends { length: number }>(value: T) => {
-  if (value?.length === size) {
-    return value as T & { length: N };
-  }
-  throw exception(value, `of length: ${size}`);
-};
+  /**
+   * Length of string or array is exactly `size`
+   * @param value `string` or `array`
+   * @returns value
+   * @throws if value is not of length `size`
+   */
+  validator(
+    (value) => value?.length === size,
+    () => `of length: ${size}`,
+  ) as <T extends { length: number }>(value: T) => T & { length: N };
 
 /**
  * Alias `to(not(length(0)))`
@@ -420,17 +502,15 @@ export const nonempty = /* @__PURE__ */ to(not(length(0))) as <T extends { lengt
  * `value` is within `list` (a.k.a. Enum)
  */
 export const within = <T>(list: readonly T[]) =>
-/**
- * @param value member of `list`
- * @returns value
- * @throws if value is not a member of `list`
- */
-<V>(value: V) => {
-  if (list.indexOf(value as unknown as T) >= 0) {
-    return value as V & T;
-  }
-  throw exception(value, `one of ${list}`);
-};
+  /**
+   * @param value member of `list`
+   * @returns value
+   * @throws if value is not a member of `list`
+   */
+  validator(
+    (value) => list.indexOf(value) >= 0,
+    () => `one of ${list}`,
+  ) as <V>(value: V) => V & T;
 
 /**
  * Validate against the Luhn algorithm (adapted from
@@ -488,14 +568,19 @@ export const numeric = <T extends string | number | bigint>(value: T) => {
   if (is(finite)(value)) {
     return value;
   }
-  return to(
-    stringify,
-    (value: string) => value.replace(/[^0-9oex.-]/g, ''),
-    nonempty,
-    (value: string) => finite(Number(value)),
-    or(exception(value, 'numeric')),
-  )(value);
+  try {
+    return numericPipe(value);
+  } catch {
+    throw exception(value, 'numeric');
+  }
 };
+
+const numericPipe: (value: unknown) => number = /* @__PURE__ */ to(
+  stringify,
+  (value: string) => value.replace(/[^0-9oex.-]/g, ''),
+  nonempty,
+  (value: string) => finite(Number(value)),
+);
 
 /**
  * `Date` Mutator
@@ -503,8 +588,13 @@ export const numeric = <T extends string | number | bigint>(value: T) => {
  * @returns Date
  * @throws if value cannot be mutated to `Date`
  */
-export const dateify = <T extends number | string | Date>(value: T) =>
-  to(date, or(exception(value, 'a date')))(new Date(value));
+export const dateify = <T extends number | string | Date>(value: T) => {
+  const mutated = new Date(value);
+  if (is(date)(mutated)) {
+    return mutated;
+  }
+  throw exception(value, 'a date');
+};
 
 /**
  * `boolean` Mutator
@@ -851,14 +941,16 @@ export const prettyPhone = (value: string) => {
  * @returns string of 5-digit zip code
  * @throws if value does not contain 5 digits
  */
-export const postalCodeUs5 = (value: string) =>
-  to(
-    digits,
-    limit(5),
-    string,
-    length(5),
-    or(exception(value, 'a valid US postal code')),
-  )(value);
+// built lazily: `limit` is declared further down in this module
+let postalCodeUs5Pipe: UnaryFunction | undefined;
+export const postalCodeUs5 = (value: string) => {
+  const validate = postalCodeUs5Pipe ??= to(digits, limit(5), string, length(5));
+  try {
+    return validate(value) as string & { length: 5 };
+  } catch {
+    throw exception(value, 'a valid US postal code');
+  }
+};
 
 /**
  * Limit the value of a `number`, characters in a `string`, or items in an
