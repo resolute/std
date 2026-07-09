@@ -4,6 +4,7 @@
 const SymbolGuardTest = /* @__PURE__ */ Symbol('GuardTest');
 const SymbolOtherwise = /* @__PURE__ */ Symbol('Otherwise');
 const SymbolPredicate = /* @__PURE__ */ Symbol('Predicate');
+const SymbolPipeStages = /* @__PURE__ */ Symbol('PipeStages');
 
 /**
  * Non-throwing test attached to pure validators. When present, `is`, `not`,
@@ -23,6 +24,27 @@ const predicateOf = (coercer: unknown): ((value: any) => boolean) | undefined =>
   typeof coercer === 'function'
     ? (coercer as { [SymbolPredicate]?: (value: any) => boolean })[SymbolPredicate]
     : undefined;
+
+interface Stage {
+  predicate?: (value: any) => boolean;
+  run: UnaryFunction;
+}
+
+/**
+ * Decompose a coercer into its flattest list of executable stages. Pipes
+ * (created by `pipe`/`to`) expose their member coercers via `SymbolPipeStages`,
+ * so a chain like `to(string, email, or(null))` sees `email`’s internal
+ * validators — and their predicates — instead of one opaque throwing function.
+ * This lets `is`, `not`, and `to(…, or(…))` reject via predicates deep inside
+ * nested pipes without ever constructing a `TypeError`.
+ */
+const stagesOf = (coercer: UnaryFunction): Stage[] => {
+  const nested = (coercer as { [SymbolPipeStages]?: UnaryFunction[] })[SymbolPipeStages];
+  if (nested) {
+    return nested.flatMap(stagesOf);
+  }
+  return [{ predicate: predicateOf(coercer), run: guardInPipe(coercer) as UnaryFunction }];
+};
 
 /**
  * Build a validating guard from a non-throwing `predicate`. The guard returns
@@ -63,14 +85,12 @@ export const to: Coerce = (...coercers: UnaryFunction[]) => {
   }
   const { value: otherwise } = lastCoercer as Otherwise<any>;
   const throwOtherwise = otherwise instanceof Error;
-  // Compile the chain once. Stages with a predicate run throw-free: on a
-  // predicate miss we jump straight to `otherwise` without ever constructing
-  // the guard’s TypeError. Stages without a predicate (mutators, foreign
-  // functions) run under try/catch as before.
-  const stages = coercers.slice(0, coercerLengthMinusOne).map((coercer) => ({
-    predicate: predicateOf(coercer),
-    run: guardInPipe(coercer) as UnaryFunction,
-  }));
+  // Compile the chain once, flattening nested pipes into their member stages.
+  // Stages with a predicate run throw-free: on a predicate miss we jump
+  // straight to `otherwise` without ever constructing the guard’s TypeError.
+  // Stages without a predicate (mutators, foreign functions) run under
+  // try/catch as before.
+  const stages = coercers.slice(0, coercerLengthMinusOne).flatMap(stagesOf);
   return <T>(value: T) => {
     let current: unknown = value;
     for (const stage of stages) {
@@ -136,15 +156,28 @@ export const or = <Y>(value: NonFunction<Y>) => ({
  */
 export const is = <A extends UnaryFunction>(coercer: A): Is<A> => {
   const predicate = predicateOf(coercer);
+  // Without a composite predicate, walk the coercer’s flattened stages:
+  // predicate stages reject throw-free; only stages without one (mutators,
+  // foreign functions) need try/catch.
+  const stages = predicate ? undefined : stagesOf(coercer);
   const guard = predicate
     ? (value: unknown): value is ReturnType<A> => predicate(value)
     : (value: unknown): value is ReturnType<A> => {
-      try {
-        coercer(value);
-        return true;
-      } catch {
-        return false;
+      let current: unknown = value;
+      for (const stage of stages as Stage[]) {
+        if (stage.predicate) {
+          if (!stage.predicate(current)) {
+            return false;
+          }
+          continue;
+        }
+        try {
+          current = stage.run(current);
+        } catch {
+          return false;
+        }
       }
+      return true;
     };
   if (predicate) {
     (guard as { [SymbolPredicate]?: (value: any) => boolean })[SymbolPredicate] = predicate;
@@ -217,6 +250,9 @@ const pipe: To = (...fns: UnaryFunction[]) => {
     (piped as { [SymbolPredicate]?: (value: any) => boolean })[SymbolPredicate] = (value) =>
       (predicates as ((value: any) => boolean)[]).every((predicate) => predicate(value));
   }
+  // Expose member coercers so enclosing `is`/`not`/`to(…, or(…))` chains can
+  // flatten this pipe into individual stages (see `stagesOf`).
+  (piped as { [SymbolPipeStages]?: UnaryFunction[] })[SymbolPipeStages] = fns;
   return piped;
 };
 
@@ -420,14 +456,9 @@ export const nonzero = /* @__PURE__ */ to(/* @__PURE__ */ not(zero)) as <T exten
  * @returns value
  * @throws if value <= 0
  */
-export const positive = /* @__PURE__ */ to(
-  nonzero,
-  (value: number) => {
-    if (value > 0) {
-      return value;
-    }
-    throw exception(value, 'a positive number');
-  },
+export const positive = /* @__PURE__ */ validator(
+  (value) => value > 0,
+  'a positive number',
 ) as (input: number) => number;
 
 /**
@@ -436,14 +467,10 @@ export const positive = /* @__PURE__ */ to(
  * @returns value
  * @throws if value >= 0
  */
-const negativePipe = /* @__PURE__ */ to(nonzero, /* @__PURE__ */ not(positive));
-export const negative = (value: number): number => {
-  try {
-    return negativePipe(value);
-  } catch {
-    throw exception(value, 'a negative number');
-  }
-};
+export const negative = /* @__PURE__ */ validator(
+  (value) => value < 0,
+  'a negative number',
+) as (value: number) => number;
 
 /**
  * Date is in the future
@@ -451,12 +478,10 @@ export const negative = (value: number): number => {
  * @returns value
  * @throws if date is in the past
  */
-export const future = (value: Date): Date => {
-  if (value.valueOf() > Date.now()) {
-    return value;
-  }
-  throw exception(value, 'in the future');
-};
+export const future = /* @__PURE__ */ validator(
+  (value) => value instanceof Date && value.valueOf() > Date.now(),
+  'in the future',
+) as (value: Date) => Date;
 
 /**
  * Date is in the past
@@ -464,12 +489,10 @@ export const future = (value: Date): Date => {
  * @returns value
  * @throws if date is in the future
  */
-export const past = (value: Date): Date => {
-  if (value.valueOf() < Date.now()) {
-    return value;
-  }
-  throw exception(value, 'in the past');
-};
+export const past = /* @__PURE__ */ validator(
+  (value) => value instanceof Date && value.valueOf() < Date.now(),
+  'in the past',
+) as (value: Date) => Date;
 
 /**
  * Length of string or array is exactly `size`
@@ -536,6 +559,18 @@ export const luhn = (value: string): string => {
   throw exception(value, 'able to pass the Luhn test');
 };
 
+// Hoisted guards for internal reuse: `is(…)` allocates a new guard function on
+// every call, so the hot mutators below share these instead of rebuilding them
+// per invocation.
+const isString = /* @__PURE__ */ is(string);
+const isNumber = /* @__PURE__ */ is(number);
+const isDate = /* @__PURE__ */ is(date);
+const isArray = /* @__PURE__ */ is(array);
+const isIterable = /* @__PURE__ */ is(iterable);
+const isObject = /* @__PURE__ */ is(object);
+const isNonempty = /* @__PURE__ */ is(nonempty);
+const isPair = /* @__PURE__ */ is(/* @__PURE__ */ length(2));
+
 //#endregion
 
 //#region Mutators
@@ -548,7 +583,7 @@ export const luhn = (value: string): string => {
  * @throws if value cannot be mutated to `string`
  */
 export const stringify = <T extends string | number | bigint>(value: T): string => {
-  if (is(finite)(value) || is(bigint)(value)) {
+  if ((typeof value === 'number' && Number.isFinite(value)) || typeof value === 'bigint') {
     return value.toString();
   }
   return string(value as string);
@@ -561,28 +596,26 @@ export const stringify = <T extends string | number | bigint>(value: T): string 
  * @throws if value cannot be mutated to `number`
  */
 export const numeric = <T extends string | number | bigint>(value: T): number => {
-  if (is(bigint)(value)) {
+  if (typeof value === 'bigint') {
     if (value > Number.MIN_SAFE_INTEGER && value < Number.MAX_SAFE_INTEGER) {
       return Number(value);
     }
     throw exception(value, 'between SAFE_INTEGER bounds');
   }
-  if (is(finite)(value)) {
+  if (typeof value === 'number' && Number.isFinite(value)) {
     return value;
   }
-  try {
-    return numericPipe(value);
-  } catch {
-    throw exception(value, 'numeric');
+  if (typeof value === 'string') {
+    const cleaned = value.replace(/[^0-9oex.-]/g, '');
+    if (cleaned !== '') {
+      const parsed = Number(cleaned);
+      if (Number.isFinite(parsed)) {
+        return parsed;
+      }
+    }
   }
+  throw exception(value, 'numeric');
 };
-
-const numericPipe: (value: unknown) => number = /* @__PURE__ */ to(
-  stringify,
-  (value: string) => value.replace(/[^0-9oex.-]/g, ''),
-  nonempty,
-  (value: string) => finite(Number(value)),
-);
 
 /**
  * `Date` Mutator
@@ -592,7 +625,7 @@ const numericPipe: (value: unknown) => number = /* @__PURE__ */ to(
  */
 export const dateify = <T extends number | string | Date>(value: T): Date => {
   const mutated = new Date(value);
-  if (is(date)(mutated)) {
+  if (isDate(mutated)) {
     return mutated;
   }
   throw exception(value, 'a date');
@@ -665,10 +698,10 @@ export const boolean = <Truthy = true, Falsy = false, Nully = Falsy, Undefy = Nu
 export const arrayify = <T>(value: T): IterableOrNot<T>[] => {
   // a `string` _is_ Iterable, but we do not want to return an array of
   // characters
-  if (is(array)(value)) {
+  if (isArray(value)) {
     return value as IterableOrNot<T>[];
   }
-  if (!is(string)(value) && is(iterable)(value)) {
+  if (!isString(value) && isIterable(value)) {
     return [...value] as IterableOrNot<T>[];
   }
   return [value] as IterableOrNot<T>[];
@@ -681,10 +714,10 @@ export const arrayify = <T>(value: T): IterableOrNot<T>[] => {
  * @throws if value cannot be transformed into an array of entries
  */
 export const entries: Entries = <T extends Iterable<any>>(value: T) => {
-  if (is(iterable)(value)) {
+  if (isIterable(value)) {
     return arrayify(value);
   }
-  if (is(object)(value)) {
+  if (isObject(value)) {
     return Object.entries(value);
   }
   throw exception(value, `transformable to entries`);
@@ -701,7 +734,7 @@ export const entries: Entries = <T extends Iterable<any>>(value: T) => {
 export const pairs = <T extends Iterable<[K, V]>, K, V>(value: T): [K, V][] =>
   entries(value)
     .map(limit(2) as (value: [K, V]) => [K, V])
-    .filter(is(length(2)));
+    .filter(isPair);
 
 /**
  * Gracefully wrap errors or strings with an Error wrapper. Prevents
@@ -712,14 +745,16 @@ export const pairs = <T extends Iterable<[K, V]>, K, V>(value: T): [K, V][] =>
  */
 export const wrapError: WrapError = (wrapper?: ErrorConstructor) => (value: Error | string) => {
   const wrap = wrapper ?? Error;
-  if (is(string)(value)) {
-    return new wrap(value);
+  // widen: the declared `Error | string` otherwise narrows to `never` below
+  const candidate: unknown = value;
+  if (typeof candidate === 'string') {
+    return new wrap(candidate);
   }
-  if (is(instance(wrap))(value)) {
-    return value;
+  if (candidate instanceof wrap) {
+    return candidate;
   }
-  if (is(instance(Error))(value)) {
-    return new wrap((value as Error).message);
+  if (candidate instanceof Error) {
+    return new wrap(candidate.message);
   }
   throw exception(value, `string, Error, or ${wrap.name}`);
 };
@@ -878,14 +913,13 @@ export const proper = (value: string): string =>
  * @throws if value does not resemble an email
  */
 export const email: ToResult<string, string> = /* @__PURE__ */ to(
+  string,
   (value: string) => value.toLowerCase().replace(/\s+/g, ''),
-  nonempty,
-  (value: string) => {
-    if (/[a-z0-9]@[a-z0-9]/.test(value)) {
-      return value;
-    }
-    throw exception(value, 'a valid email address');
-  },
+  // basically, just checks for “@” surrounded by alphanumeric
+  /* @__PURE__ */ validator(
+    (value) => /[a-z0-9]@[a-z0-9]/.test(value),
+    'a valid email address',
+  ) as (value: string) => string,
 );
 
 /**
@@ -944,15 +978,14 @@ export const prettyPhone = (value: string): string => {
  * @returns string of 5-digit zip code
  * @throws if value does not contain 5 digits
  */
-// built lazily: `limit` is declared further down in this module
-let postalCodeUs5Pipe: UnaryFunction | undefined;
 export const postalCodeUs5 = (value: string): string & { length: 5 } => {
-  const validate = postalCodeUs5Pipe ??= to(digits, limit(5), string, length(5));
-  try {
-    return validate(value) as string & { length: 5 };
-  } catch {
-    throw exception(value, 'a valid US postal code');
+  if (typeof value === 'string') {
+    const five = digits(value).slice(0, 5);
+    if (five.length === 5) {
+      return five as string & { length: 5 };
+    }
   }
+  throw exception(value, 'a valid US postal code');
 };
 
 /**
@@ -970,13 +1003,13 @@ export const limit = <N extends number>(max: N): <T>(value: T) => Limit<N, T> =>
  * @throws if value is not a number, string, or array
  */
 <T>(value: T): Limit<N, T> => {
-  if (is(number)(value)) {
+  if (isNumber(value)) {
     return Math.min(value, max) as Limit<N, T>;
   }
-  if (is(string)(value)) {
+  if (isString(value)) {
     return value.slice(0, max) as Limit<N, T>;
   }
-  if (is(array)(value)) {
+  if (isArray(value)) {
     return value.slice(0, max) as Limit<N, T>;
   }
   throw exception(value, `able to be limited to ${max}`);
@@ -1005,7 +1038,7 @@ export const split = (separator = /[,\r\n\s]+/g, limit?: number): (value: string
   value.split(separator, limit)
     .map(spaces) // remove irregular spaces
     .map(trim)
-    .filter(is(nonempty));
+    .filter(isNonempty);
 
 //#endregion
 
@@ -1094,25 +1127,25 @@ export interface To {
   <A extends UnaryFunction, B extends (value: UnaryReturnType<A>) => any>(
     a: A,
     b: B,
-  ): ToResult<Parameters<A>[0], UnaryReturnType<B>>;
+  ): ToResult<Parameters<A>[0], UnaryExtends<A, B>>;
   <
     A extends UnaryFunction,
     B extends (value: UnaryReturnType<A>) => any,
     C extends (value: UnaryExtends<A, B>) => any,
-  >(a: A, b: B, c: C): ToResult<Parameters<A>[0], UnaryReturnType<C>>;
+  >(a: A, b: B, c: C): ToResult<Parameters<A>[0], UnaryExtends<B, C>>;
   <
     A extends UnaryFunction,
     B extends (value: UnaryReturnType<A>) => any,
     C extends (value: UnaryExtends<A, B>) => any,
     D extends (value: UnaryExtends<B, C>) => any,
-  >(a: A, b: B, c: C, d: D): ToResult<Parameters<A>[0], UnaryReturnType<D>>;
+  >(a: A, b: B, c: C, d: D): ToResult<Parameters<A>[0], UnaryExtends<C, D>>;
   <
     A extends UnaryFunction,
     B extends (value: UnaryReturnType<A>) => any,
     C extends (value: UnaryExtends<A, B>) => any,
     D extends (value: UnaryExtends<B, C>) => any,
     E extends (value: UnaryExtends<C, D>) => any,
-  >(a: A, b: B, c: C, d: D, e: E): ToResult<Parameters<A>[0], UnaryReturnType<E>>;
+  >(a: A, b: B, c: C, d: D, e: E): ToResult<Parameters<A>[0], UnaryExtends<D, E>>;
   <
     A extends UnaryFunction,
     B extends (value: UnaryReturnType<A>) => any,
@@ -1120,7 +1153,7 @@ export interface To {
     D extends (value: UnaryExtends<B, C>) => any,
     E extends (value: UnaryExtends<C, D>) => any,
     F extends (value: UnaryExtends<D, E>) => any,
-  >(a: A, b: B, c: C, d: D, e: E, f: F): ToResult<Parameters<A>[0], UnaryReturnType<F>>;
+  >(a: A, b: B, c: C, d: D, e: E, f: F): ToResult<Parameters<A>[0], UnaryExtends<E, F>>;
   <
     A extends UnaryFunction,
     B extends (value: UnaryReturnType<A>) => any,
@@ -1129,7 +1162,7 @@ export interface To {
     E extends (value: UnaryExtends<C, D>) => any,
     F extends (value: UnaryExtends<D, E>) => any,
     G extends (value: UnaryExtends<E, F>) => any,
-  >(a: A, b: B, c: C, d: D, e: E, f: F, g: G): ToResult<Parameters<A>[0], UnaryReturnType<G>>;
+  >(a: A, b: B, c: C, d: D, e: E, f: F, g: G): ToResult<Parameters<A>[0], UnaryExtends<F, G>>;
   <
     A extends UnaryFunction,
     B extends (value: UnaryReturnType<A>) => any,
@@ -1139,7 +1172,7 @@ export interface To {
     F extends (value: UnaryExtends<D, E>) => any,
     G extends (value: UnaryExtends<E, F>) => any,
     H extends (value: UnaryExtends<F, G>) => any,
-  >(a: A, b: B, c: C, d: D, e: E, f: F, g: G, h: H): ToResult<Parameters<A>[0], UnaryReturnType<H>>;
+  >(a: A, b: B, c: C, d: D, e: E, f: F, g: G, h: H): ToResult<Parameters<A>[0], UnaryExtends<G, H>>;
   <AZ extends UnaryFunction>(...az: AZ[]): ToResult<Parameters<AZ>[0], UnaryReturnType<AZ>>;
 }
 
@@ -1156,7 +1189,7 @@ export interface Coerce extends To {
     a: A,
     b: B,
     c: C,
-  ): OrResult<Parameters<A>[0], UnaryReturnType<B>, C['value']>;
+  ): OrResult<Parameters<A>[0], UnaryExtends<A, B>, C['value']>;
   <
     A extends UnaryFunction,
     B extends (value: UnaryReturnType<A>) => any,
@@ -1167,7 +1200,7 @@ export interface Coerce extends To {
     b: B,
     c: C,
     d: D,
-  ): OrResult<Parameters<A>[0], UnaryReturnType<C>, D['value']>;
+  ): OrResult<Parameters<A>[0], UnaryExtends<B, C>, D['value']>;
   <
     A extends UnaryFunction,
     B extends (value: UnaryReturnType<A>) => any,
@@ -1180,7 +1213,7 @@ export interface Coerce extends To {
     c: C,
     d: D,
     e: E,
-  ): OrResult<Parameters<A>[0], UnaryReturnType<D>, E['value']>;
+  ): OrResult<Parameters<A>[0], UnaryExtends<C, D>, E['value']>;
   <
     A extends UnaryFunction,
     B extends (value: UnaryReturnType<A>) => any,
@@ -1195,7 +1228,7 @@ export interface Coerce extends To {
     d: D,
     e: E,
     f: F,
-  ): OrResult<Parameters<A>[0], UnaryReturnType<E>, F['value']>;
+  ): OrResult<Parameters<A>[0], UnaryExtends<D, E>, F['value']>;
   <
     A extends UnaryFunction,
     B extends (value: UnaryReturnType<A>) => any,
@@ -1212,7 +1245,7 @@ export interface Coerce extends To {
     e: E,
     f: F,
     g: G,
-  ): OrResult<Parameters<A>[0], UnaryReturnType<F>, G['value']>;
+  ): OrResult<Parameters<A>[0], UnaryExtends<E, F>, G['value']>;
   <
     A extends UnaryFunction,
     B extends (value: UnaryReturnType<A>) => any,
@@ -1231,7 +1264,7 @@ export interface Coerce extends To {
     f: F,
     g: G,
     h: H,
-  ): OrResult<Parameters<A>[0], UnaryReturnType<G>, H['value']>;
+  ): OrResult<Parameters<A>[0], UnaryExtends<F, G>, H['value']>;
   <
     A extends UnaryFunction,
     B extends (value: UnaryReturnType<A>) => any,
@@ -1251,7 +1284,7 @@ export interface Coerce extends To {
     f: F,
     g: G,
     h: H,
-  ): OrResult<Parameters<A>[0], UnaryReturnType<H>, I['value']>;
+  ): OrResult<Parameters<A>[0], UnaryExtends<G, H>, I['value']>;
 }
 
 //#endregion
