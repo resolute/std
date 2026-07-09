@@ -6,17 +6,8 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: Release tag to publish
+        description: Release tag to publish (e.g. v0.3.1)
         required: true
-        default: v0.3.0
-      provenance:
-        description: Publish with npm provenance
-        required: true
-        default: "true"
-        type: choice
-        options:
-          - "true"
-          - "false"
 
 permissions:
   contents: read
@@ -58,11 +49,4 @@ jobs:
         run: deno task pack:release
 
       - name: Publish npm package
-        env:
-          NPM_PROVENANCE: ${{ inputs.provenance || 'true' }}
-        run: |
-          if [ "${NPM_PROVENANCE}" = "false" ]; then
-            npm publish ./*.tgz --access public --provenance=false
-          else
-            npm publish ./*.tgz --access public
-          fi
+        run: npm publish ./*.tgz --access public --provenance
