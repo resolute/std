@@ -10,6 +10,11 @@ Do not edit or add a root `package.json` for publishing. `deno pack` does not re
 TypeScript modules to JavaScript, generates `.d.ts` files, and writes a generated `package.json`
 inside the npm tarball.
 
+`deno pack` omits the `repository` field from the generated `package.json`, but npm provenance
+verification requires it to match the publishing repository. The `pack` and `pack:release` tasks run
+`scripts/postpack.ts` after `deno pack` to patch the generated `package.json` inside the tarball
+with the `repository` (and `description`) from `deno.json`.
+
 ## Prerequisites
 
 Publishing is configured through npm Trusted Publishing with GitHub Actions. There is no `NPM_TOKEN`
@@ -122,7 +127,11 @@ Publishing the GitHub Release triggers `.github/workflows/npm-publish.yml`. That
 2. Installs Deno and Node.
 3. Verifies the tag name is exactly `v${deno.json.version}`.
 4. Runs `deno task pack:release`.
-5. Runs `npm publish ./*.tgz --access public`.
+5. Runs `npm publish ./*.tgz --access public --provenance`.
+
+Provenance is always enforced; there is no option to publish without it. If the workflow fails, fix
+the problem and re-run it manually from the Actions tab (`workflow_dispatch`) with the release tag
+as input.
 
 If the release workflow fails before the `npm publish` step, fix the problem, delete the failed
 GitHub Release if needed, move or recreate the tag only if the release commit changed, and publish

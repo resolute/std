@@ -3,6 +3,10 @@
   "version": "0.3.1",
   "description": "Standard TypeScript Development",
   "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/resolute/std.git"
+  },
   "exports": {
     "./coerce": "./coerce.ts",
     "./color": "./color.ts",
@@ -31,8 +35,9 @@
     "bench": "deno bench coerce.bench.ts",
     "check": "deno check --doc *.ts dom/*.ts",
     "clean": "deno run --allow-read=. --allow-write=. scripts/clean.ts",
-    "pack": "deno pack --allow-dirty --no-source-maps --ignore='**/*.test.ts' --ignore='**/*.bench.ts'",
-    "pack:release": "deno task clean && deno task check && deno task test && deno task clean && deno pack --no-source-maps --ignore='**/*.test.ts' --ignore='**/*.bench.ts'",
+    "pack": "deno pack --allow-dirty --no-source-maps --ignore='**/*.test.ts' --ignore='**/*.bench.ts' && deno task postpack",
+    "pack:release": "deno task clean && deno task check && deno task test && deno task clean && deno pack --no-source-maps --ignore='**/*.test.ts' --ignore='**/*.bench.ts' && deno task postpack",
+    "postpack": "deno run --allow-read=. --allow-write=. --allow-run=tar scripts/postpack.ts",
     "test": "deno eval \"try { Deno.removeSync('coverage', { recursive: true }); } catch (error) { if (!(error instanceof Deno.errors.NotFound)) throw error; }\" && deno test --parallel --allow-net --coverage=coverage/tmp && deno coverage coverage/tmp --lcov > coverage/lcov.info",
     "test:node": "node --test coerce.test.ts color.test.ts control.test.ts cookie.test.ts ease.test.ts http.test.ts intl.test.ts iterable.test.ts math.test.ts mime.test.ts misc.test.ts promise.test.ts"
   },
