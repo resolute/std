@@ -1,3 +1,6 @@
+import { createServer } from 'node:http';
+import type { AddressInfo } from 'node:net';
+
 import { wrapError } from './coerce.ts';
 import { equals, exists, matches, strict, test, throws, throwsAsync } from './assert.test.ts';
 
@@ -15,8 +18,25 @@ import {
   validDataPostRequest,
 } from './http.ts';
 
-const BASE_TEST_HTTP_URL = 'https://httpbin.org/status';
-// const BASE_TEST_HTTP_URL = 'https://mock.httpstatus.io';
+// Local stand-in for httpbin.org’s /status/:code service, whose gateway
+// intermittently returns 502 and makes these tests flaky. `fetch` still
+// exercises a real HTTP exchange over a real socket, just deterministically.
+// Every response carries a text/plain body; 3xx responses redirect to
+// /status/200. `node:http` works under both the Deno and Node test runs.
+const server = createServer((request, response) => {
+  const status = Number(/^\/status\/(\d+)$/.exec(request.url ?? '')?.[1] ?? '404');
+  response.writeHead(status, {
+    'content-type': 'text/plain',
+    ...(status >= 300 && status < 400 ? { location: '/status/200' } : {}),
+  });
+  response.end(String(status));
+});
+await new Promise<void>((resolve) => {
+  server.listen(0, '127.0.0.1', resolve);
+});
+server.unref();
+
+const BASE_TEST_HTTP_URL = `http://127.0.0.1:${(server.address() as AddressInfo).port}/status`;
 
 const testGetRequest = new Request('file:///foo');
 
